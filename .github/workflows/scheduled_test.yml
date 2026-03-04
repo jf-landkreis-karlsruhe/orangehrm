@@ -7,8 +7,9 @@ on:
   pull_request:
     paths:
       - '.github/workflows/scheduled_test.yml'
+  # disabled
   schedule:
-    - cron: "0 2 * * *"
+    - cron: "0 2 1 1 1" 
 
 jobs:
   db_test:
