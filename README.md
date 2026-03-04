@@ -12,6 +12,30 @@ OrangeHRM is distributed in the hope that it will be useful, but WITHOUT ANY WAR
 
 ## Getting started
 
+### Docker Installation (Recommended)
+
+The easiest way to run OrangeHRM is using Docker. Images are automatically built and published to GitHub Container Registry (GHCR) for each release.
+
+**Pull and run the latest version:**
+```bash
+docker pull ghcr.io/jf-landkreis-karlsruhe/orangehrm:latest
+docker run -d -p 80:80 ghcr.io/jf-landkreis-karlsruhe/orangehrm:latest
+```
+
+**Pull a specific version:**
+```bash
+docker pull ghcr.io/jf-landkreis-karlsruhe/orangehrm:5.8
+docker run -d -p 80:80 ghcr.io/jf-landkreis-karlsruhe/orangehrm:5.8
+```
+
+**Available platforms:**
+- `linux/amd64` (x86_64)
+- `linux/arm64` (ARM 64-bit)
+
+Docker images are automatically built and published when a new Git tag is pushed (e.g., `v5.8`, `v5.9.0`).
+
+### Manual Installation
+
 - Download the latest version of OrangeHRM Starter [here](https://sourceforge.net/projects/orangehrm/files/latest/download).
 
 - Prerequisites and environment set up for installing OrangeHRM Starter:
