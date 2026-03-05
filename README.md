@@ -48,6 +48,109 @@ Docker images are automatically built and published when a new Git tag is pushed
 
 - For further information on how to use the product please refer to the User Guides, Tutorial videos, and FAQs available on [Help Portal](https://starterhelp.orangehrm.com)
 
+## Local Development with Docker
+### Quick Start
+
+```bash
+# 1. Clone the repository (if not already done)
+git clone <repository-url>
+cd orangehrm
+
+# 2. Install all dependencies (PHP + Node)
+make install
+
+# 3. Start the database
+make db-up
+
+# 4. Install OrangeHRM
+make db-install
+
+# 5. Run tests to verify everything works
+make test
+```
+
+That's it! You now have a fully functional development environment.
+
+### Available Commands
+
+The Makefile provides convenient shortcuts for common tasks:
+
+#### Setup & Installation
+| Command | Description |
+|---------|-------------|
+| `make install` | Install all dependencies (PHP + Node) |
+| `make install-php` | Install PHP dependencies with Composer |
+| `make install-node` | Install Node dependencies with Yarn |
+
+#### Testing
+| Command | Description |
+|---------|-------------|
+| `make test` | Run all tests (PHPUnit + Jest) |
+| `make test-php` | Run PHPUnit tests |
+| `make test-php-coverage` | Run PHPUnit with code coverage |
+| `make test-node` | Run Jest tests (Vue unit tests) |
+| `make test-node-coverage` | Run Jest with code coverage |
+
+#### Linting
+| Command | Description |
+|---------|-------------|
+| `make lint` | Run all linters (PHP + Node) |
+| `make lint-php` | Check PHP coding standards |
+| `make lint-php-fix` | Fix PHP coding standards |
+| `make lint-node` | Check Node/Vue code with ESLint |
+
+#### Building
+| Command | Description |
+|---------|-------------|
+| `make build` | Full OrangeHRM build (like CI) |
+| `make build-client` | Build Vue client only |
+| `make build-installer` | Build installer client only |
+
+#### Database
+| Command | Description |
+|---------|-------------|
+| `make db-up` | Start MariaDB container |
+| `make db-down` | Stop MariaDB container |
+| `make db-install` | Install OrangeHRM via CLI |
+| `make db-reset` | Reset database |
+
+#### Development
+| Command | Description |
+|---------|-------------|
+| `make shell-php` | Open interactive PHP shell |
+| `make shell-node` | Open interactive Node shell |
+| `make clean` | Clean generated files and caches |
+| `make help` | Show all available commands |
+
+### Development Workflows
+
+#### Daily Development
+
+```bash
+# Make code changes in your editor...
+
+# Run relevant tests
+make test-php        # After PHP changes
+make test-node       # After Vue changes
+
+# Check code style
+make lint
+
+# Build to verify everything works
+make build
+```
+
+#### Persistent MySQL Data
+
+By default, MariaDB uses tmpfs (RAM) for fast tests without persistence. To enable persistence:
+
+```yaml
+# Edit docker-compose.dev.yml
+# Replace tmpfs with a volume:
+volumes:
+  - mysql-data:/var/lib/mysql
+```
+
 ## OrangeHRM Mobile App
 
 <a href="https://play.google.com/store/apps/details?id=com.orangehrm.opensource" target="_blank">

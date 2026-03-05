@@ -1,0 +1,27 @@
+FROM node:20-bookworm
+
+# Build arguments for user mapping
+ARG UID=1000
+ARG GID=1000
+
+# Enable Corepack for Yarn
+RUN corepack enable
+
+# Install Yarn 4.1.0 (matching package.json)
+RUN corepack prepare yarn@4.1.0 --activate
+
+# Create user with matching UID/GID from host
+RUN groupadd -g ${GID} orangehrm \
+    && useradd -u ${UID} -g orangehrm -m -s /bin/bash orangehrm
+
+# Configure Yarn cache directory
+ENV YARN_CACHE_FOLDER=/tmp/yarn-cache
+
+# Set working directory
+WORKDIR /app
+
+# Switch to non-root user
+USER orangehrm
+
+# Verify installations
+RUN node --version && yarn --version

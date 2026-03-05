@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # PHP Development Container
+  php-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev.php
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    volumes:
+      - .:/app
+      - composer-cache:/tmp/composer-cache
+    environment:
+      - XDEBUG_MODE=${XDEBUG_MODE:-off}
+      - PHP_MEMORY_LIMIT=1G
+    depends_on:
+      mariadb-test:
+        condition: service_healthy
+    networks:
+      - orangehrm-dev
+
+  # Node.js Development Container
+  node-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev.node
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    volumes:
+      - .:/app
+      - yarn-cache:/tmp/yarn-cache
+    networks:
+      - orangehrm-dev
+
+  # MariaDB Test Database
+  mariadb-test:
+    image: mariadb:10.7
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: orangehrm_mysql
+    tmpfs:
+      - /var/lib/mysql:rw,noexec,nosuid,size=1g
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - orangehrm-dev
+
+volumes:
+  composer-cache:
+    driver: local
+  yarn-cache:
+    driver: local
+
+networks:
+  orangehrm-dev:
+    driver: bridge

@@ -13,3 +13,18 @@ coverage/
 src/plugins/orangehrmFunctionalTestingPlugin
 .php-cs-fixer.cache
 .php-cs-fixer.php
+
+# Local development environment
+.env
+.env.local
+
+# Node modules
+node_modules/
+src/client/node_modules/
+installer/client/node_modules/
+src/test/functional/node_modules/
+
+# Coverage reports
+src/client/coverage/
+coverage.tar.xz
+
