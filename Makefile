@@ -7,7 +7,7 @@ YELLOW := \033[1;33m
 NC := \033[0m # No Color
 
 # Docker Compose command
-COMPOSE := docker-compose -f docker-compose.dev.yml
+COMPOSE := docker compose -f docker-compose.dev.yml
 
 # Check if .env exists, if not create it from example
 .env:
@@ -56,9 +56,14 @@ install-node: .env ## Install Node dependencies with Yarn
 
 test: test-php test-node ## Run all tests (PHPUnit + Jest)
 
+test-setup: db-up db-install ## Prepare database for PHP tests (run once before test-php)
+	@echo "$(BLUE)Creating test database and fixtures...$(NC)"
+	@$(COMPOSE) run --rm php-test php devTools/core/console.php i:create-test-db -p root
+	@echo "$(GREEN)Test environment ready!$(NC)"
+
 test-php: .env ## Run PHPUnit tests
 	@echo "$(BLUE)Running PHPUnit tests...$(NC)"
-	@$(COMPOSE) run --rm php-test ./src/vendor/bin/phpunit
+	@$(COMPOSE) run --rm php-test php -d memory_limit=1G ./src/vendor/bin/phpunit
 
 test-php-coverage: .env ## Run PHPUnit tests with coverage
 	@echo "$(BLUE)Running PHPUnit tests with coverage...$(NC)"
@@ -141,6 +146,25 @@ db-reset: .env ## Reset OrangeHRM installation
 	@echo "$(GREEN)Database reset!$(NC)"
 
 ##@ Development
+
+serve: .env ## Start OrangeHRM locally at http://localhost:8080
+	@echo "$(BLUE)Starting OrangeHRM web server...$(NC)"
+	@$(COMPOSE) up -d web mariadb-dev
+	@echo "$(GREEN)OrangeHRM running at http://localhost:8080$(NC)"
+	@echo "$(YELLOW)First time? Run: make web-install$(NC)"
+
+web-install: .env ## Install OrangeHRM into the local dev database (run once after make serve)
+	@echo "$(BLUE)Installing PHP dependencies...$(NC)"
+	@$(COMPOSE) run --rm php-test composer install -d src
+	@$(COMPOSE) run --rm php-test composer install -d devTools/core
+	@echo "$(BLUE)Running OrangeHRM installer...$(NC)"
+	@$(COMPOSE) run --rm -e DB_HOST=mariadb-dev php-test php installer/cli_install.php
+	@echo "$(GREEN)OrangeHRM installed! Open http://localhost:8080$(NC)"
+
+stop: .env ## Stop OrangeHRM local server
+	@echo "$(BLUE)Stopping OrangeHRM...$(NC)"
+	@$(COMPOSE) stop web mariadb-dev
+	@echo "$(GREEN)Stopped!$(NC)"
 
 shell-php: .env ## Open interactive PHP shell
 	@echo "$(BLUE)Opening PHP shell...$(NC)"

@@ -49,31 +49,52 @@ Docker images are automatically built and published when a new Git tag is pushed
 - For further information on how to use the product please refer to the User Guides, Tutorial videos, and FAQs available on [Help Portal](https://starterhelp.orangehrm.com)
 
 ## Local Development with Docker
-### Quick Start
+
+### Running OrangeHRM locally
+
+To start OrangeHRM in the browser:
 
 ```bash
-# 1. Clone the repository (if not already done)
-git clone <repository-url>
-cd orangehrm
+# 1. Start the web server and database
+make serve
 
-# 2. Install all dependencies (PHP + Node)
+# 2. First time only: install dependencies and set up the database
+make web-install
+```
+
+Open http://localhost:8080 in your browser.
+
+**Default login credentials:**
+| Field | Value |
+|-------|-------|
+| Username | `Admin` |
+| Password | `Ohrm@1423` |
+
+To stop the server:
+```bash
+make stop
+```
+
+The local database is persistent — data is retained across restarts.
+
+---
+
+### Running tests
+
+```bash
+# 1. Install all dependencies (PHP + Node)
 make install
 
-# 3. Start the database
-make db-up
+# 2. Set up the test database (run once)
+make test-setup
 
-# 4. Install OrangeHRM
-make db-install
-
-# 5. Run tests to verify everything works
+# 3. Run all tests
 make test
 ```
 
-That's it! You now have a fully functional development environment.
+> **Note:** The test database uses tmpfs (in-memory) and is wiped on every `docker compose down`. Re-run `make test-setup` after that.
 
 ### Available Commands
-
-The Makefile provides convenient shortcuts for common tasks:
 
 #### Setup & Installation
 | Command | Description |
@@ -82,9 +103,17 @@ The Makefile provides convenient shortcuts for common tasks:
 | `make install-php` | Install PHP dependencies with Composer |
 | `make install-node` | Install Node dependencies with Yarn |
 
+#### Local Server
+| Command | Description |
+|---------|-------------|
+| `make serve` | Start OrangeHRM at http://localhost:8080 |
+| `make web-install` | Install OrangeHRM into local database (first time only) |
+| `make stop` | Stop the local server |
+
 #### Testing
 | Command | Description |
 |---------|-------------|
+| `make test-setup` | Prepare test database (run once before `make test-php`) |
 | `make test` | Run all tests (PHPUnit + Jest) |
 | `make test-php` | Run PHPUnit tests |
 | `make test-php-coverage` | Run PHPUnit with code coverage |
@@ -109,10 +138,10 @@ The Makefile provides convenient shortcuts for common tasks:
 #### Database
 | Command | Description |
 |---------|-------------|
-| `make db-up` | Start MariaDB container |
-| `make db-down` | Stop MariaDB container |
-| `make db-install` | Install OrangeHRM via CLI |
-| `make db-reset` | Reset database |
+| `make db-up` | Start test MariaDB container |
+| `make db-down` | Stop test MariaDB container |
+| `make db-install` | Install OrangeHRM into test database |
+| `make db-reset` | Reset test database |
 
 #### Development
 | Command | Description |
@@ -121,35 +150,6 @@ The Makefile provides convenient shortcuts for common tasks:
 | `make shell-node` | Open interactive Node shell |
 | `make clean` | Clean generated files and caches |
 | `make help` | Show all available commands |
-
-### Development Workflows
-
-#### Daily Development
-
-```bash
-# Make code changes in your editor...
-
-# Run relevant tests
-make test-php        # After PHP changes
-make test-node       # After Vue changes
-
-# Check code style
-make lint
-
-# Build to verify everything works
-make build
-```
-
-#### Persistent MySQL Data
-
-By default, MariaDB uses tmpfs (RAM) for fast tests without persistence. To enable persistence:
-
-```yaml
-# Edit docker-compose.dev.yml
-# Replace tmpfs with a volume:
-volumes:
-  - mysql-data:/var/lib/mysql
-```
 
 ## OrangeHRM Mobile App
 

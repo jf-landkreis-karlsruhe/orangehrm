@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PHP Development Container
   php-test:
@@ -31,7 +29,41 @@ services:
         GID: ${GID:-1000}
     volumes:
       - .:/app
-      - yarn-cache:/tmp/yarn-cache
+    environment:
+      - COREPACK_ENABLE_STRICT=0
+      - CI=1
+    networks:
+      - orangehrm-dev
+
+  # Web Server (Apache + PHP) for local development
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev.web
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      mariadb-dev:
+        condition: service_healthy
+    networks:
+      - orangehrm-dev
+
+  # MariaDB for local development (persistent)
+  mariadb-dev:
+    image: mariadb:10.7
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: orangehrm_mysql
+    volumes:
+      - mariadb-dev-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     networks:
       - orangehrm-dev
 
@@ -55,7 +87,7 @@ services:
 volumes:
   composer-cache:
     driver: local
-  yarn-cache:
+  mariadb-dev-data:
     driver: local
 
 networks:

@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpng-dev \
     libldap2-dev \
     libicu-dev \
+    default-mysql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
@@ -44,8 +45,16 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 ENV COMPOSER_HOME=/tmp/composer-cache
 
 # Create user with matching UID/GID from host
-RUN groupadd -g ${GID} orangehrm \
-    && useradd -u ${UID} -g orangehrm -m -s /bin/bash orangehrm
+RUN if getent group ${GID} > /dev/null 2>&1; then \
+        groupmod -n orangehrm $(getent group ${GID} | cut -d: -f1); \
+    else \
+        groupadd -g ${GID} orangehrm; \
+    fi \
+    && if getent passwd ${UID} > /dev/null 2>&1; then \
+        usermod -l orangehrm -g ${GID} -m -d /home/orangehrm $(getent passwd ${UID} | cut -d: -f1); \
+    else \
+        useradd -u ${UID} -g orangehrm -m -s /bin/bash orangehrm; \
+    fi
 
 # Set working directory
 WORKDIR /app
