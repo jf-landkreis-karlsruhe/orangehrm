@@ -137,7 +137,14 @@ db-down: .env ## Stop MariaDB container
 
 db-install: .env ## Install OrangeHRM via CLI
 	@echo "$(BLUE)Installing OrangeHRM...$(NC)"
-	@$(COMPOSE) run --rm php-test php installer/cli_install.php
+	@sed -i.bak \
+		-e 's/hostName: 127\.0\.0\.1/hostName: mariadb-test/' \
+		-e 's/isExistingDatabase: n/isExistingDatabase: y/' \
+		installer/cli_install_config.yaml
+	@$(COMPOSE) run --rm php-test php installer/cli_install.php; \
+		EXIT_CODE=$$?; \
+		mv installer/cli_install_config.yaml.bak installer/cli_install_config.yaml; \
+		exit $$EXIT_CODE
 	@echo "$(GREEN)OrangeHRM installed!$(NC)"
 
 db-reset: .env ## Reset OrangeHRM installation
@@ -158,7 +165,14 @@ web-install: .env ## Install OrangeHRM into the local dev database (run once aft
 	@$(COMPOSE) run --rm php-test composer install -d src
 	@$(COMPOSE) run --rm php-test composer install -d devTools/core
 	@echo "$(BLUE)Running OrangeHRM installer...$(NC)"
-	@$(COMPOSE) run --rm -e DB_HOST=mariadb-dev php-test php installer/cli_install.php
+	@sed -i.bak \
+		-e 's/hostName: 127\.0\.0\.1/hostName: mariadb-dev/' \
+		-e 's/isExistingDatabase: n/isExistingDatabase: y/' \
+		installer/cli_install_config.yaml
+	@$(COMPOSE) run --rm php-test php installer/cli_install.php; \
+		EXIT_CODE=$$?; \
+		mv installer/cli_install_config.yaml.bak installer/cli_install_config.yaml; \
+		exit $$EXIT_CODE
 	@echo "$(GREEN)OrangeHRM installed! Open http://localhost:8080$(NC)"
 
 stop: .env ## Stop OrangeHRM local server

@@ -1,5 +1,5 @@
 database:
-  hostName: mariadb-test
+  hostName: 127.0.0.1
   hostPort: 3306
   databaseName: orangehrm_mysql
   privilegedDatabaseUser: root
@@ -7,7 +7,7 @@ database:
   useSameDbUserForOrangeHRM: y # y/n, if this field `n` fill `orangehrmDatabaseUser` and `orangehrmDatabasePassword`
   orangehrmDatabaseUser: ~
   orangehrmDatabasePassword: ~
-  isExistingDatabase: y # y/n
+  isExistingDatabase: n # y/n
   enableDataEncryption: n # y/n
 
 organization:

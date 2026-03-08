@@ -76,7 +76,7 @@ if ($cliConfig['license']['agree'] != 'y') {
 echo "Agreed to license from config file\n";
 
 $dbType = $cliConfig['database']['isExistingDatabase'] == 'n' ? AppSetupUtility::INSTALLATION_DB_TYPE_NEW : AppSetupUtility::INSTALLATION_DB_TYPE_EXISTING;
-$dbHost = getenv('DB_HOST') ?: $cliConfig['database']['hostName'];
+$dbHost = $cliConfig['database']['hostName'];
 $dbPort = $cliConfig['database']['hostPort'];
 $dbUser = $cliConfig['database']['privilegedDatabaseUser'];
 $dbPassword = $cliConfig['database']['privilegedDatabasePassword'];
