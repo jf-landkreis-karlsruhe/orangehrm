@@ -164,6 +164,9 @@ web-install: .env ## Install OrangeHRM into the local dev database (run once aft
 	@echo "$(BLUE)Installing PHP dependencies...$(NC)"
 	@$(COMPOSE) run --rm php-test composer install -d src
 	@$(COMPOSE) run --rm php-test composer install -d devTools/core
+	@echo "$(BLUE)Clearing previous installation state...$(NC)"
+	@rm -f lib/confs/Conf.php
+	@rm -rf lib/confs/cryptokeys
 	@echo "$(BLUE)Running OrangeHRM installer...$(NC)"
 	@sed -i.bak \
 		-e 's/hostName: 127\.0\.0\.1/hostName: mariadb-dev/' \

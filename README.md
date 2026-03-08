@@ -16,16 +16,50 @@ OrangeHRM is distributed in the hope that it will be useful, but WITHOUT ANY WAR
 
 The easiest way to run OrangeHRM is using Docker. Images are automatically built and published to GitHub Container Registry (GHCR) for each release.
 
-**Pull and run the latest version:**
+**Using Docker Compose (recommended):**
+
 ```bash
-docker pull ghcr.io/jf-landkreis-karlsruhe/orangehrm:latest
-docker run -d -p 80:80 ghcr.io/jf-landkreis-karlsruhe/orangehrm:latest
+# Create a .env file with your secrets
+cat > .env <<'EOF'
+MYSQL_ROOT_PASSWORD=change-me-root
+ORANGEHRM_DB_NAME=orangehrm
+ORANGEHRM_DB_USER=orangehrm
+ORANGEHRM_DB_PASSWORD=change-me
+EOF
+
+# Start OrangeHRM + MariaDB
+docker compose up -d
 ```
+
+Open http://localhost in your browser. On first boot the installer runs automatically — this takes ~30 seconds. Subsequent starts are instant.
+
+**Default login credentials:**
+| Field | Value |
+|-------|-------|
+| Username | `Admin` |
+| Password | `Ohrm@1423` |
+
+Override the admin credentials on first boot via env vars:
+```bash
+ORANGEHRM_ADMIN_USER=MyAdmin
+ORANGEHRM_ADMIN_PASSWORD=MySecret123
+```
+
+**Environment variables:**
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `ORANGEHRM_DB_HOST` | yes | — | Database hostname |
+| `ORANGEHRM_DB_NAME` | yes | — | Database name |
+| `ORANGEHRM_DB_USER` | yes | — | Database username |
+| `ORANGEHRM_DB_PASSWORD` | yes | — | Database password |
+| `ORANGEHRM_DB_PORT` | no | `3306` | Database port |
+| `ORANGEHRM_ADMIN_USER` | no | `Admin` | Admin username (first boot only) |
+| `ORANGEHRM_ADMIN_PASSWORD` | no | `Ohrm@1423` | Admin password (first boot only) |
 
 **Pull a specific version:**
 ```bash
 docker pull ghcr.io/jf-landkreis-karlsruhe/orangehrm:5.8
-docker run -d -p 80:80 ghcr.io/jf-landkreis-karlsruhe/orangehrm:5.8
 ```
 
 **Available platforms:**

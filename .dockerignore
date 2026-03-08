@@ -10,15 +10,9 @@ phpunit.xml
 # Tests
 src/test/
 
-# Node source & build tooling (built assets are copied via multi-stage)
-src/client/
-installer/client/src/
+# node_modules (installed fresh in builder stage)
+src/client/node_modules/
 installer/client/node_modules/
-installer/client/.yarn/
-
-# Composer source (dependencies are installed in builder stage)
-src/composer.json
-src/composer.lock
 
 # Dev environment
 .env

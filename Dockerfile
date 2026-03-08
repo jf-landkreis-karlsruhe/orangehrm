@@ -1,27 +1,17 @@
 # Stage 1: Build Vue assets (main app + installer)
 FROM node:20-bookworm AS node-builder
 
-RUN corepack enable \
-    && COREPACK_ENABLE_STRICT=0 corepack prepare yarn@4.1.0 --activate
-
 WORKDIR /build
 
-# Install main app dependencies
-COPY src/client/package.json src/client/yarn.lock* src/client/.yarnrc.yml* ./src/client/
-COPY src/client/.yarn ./src/client/.yarn
-RUN cd src/client && yarn install --immutable
-
-# Install installer client dependencies
-COPY installer/client/package.json installer/client/yarn.lock* installer/client/.yarnrc.yml* ./installer/client/
-COPY installer/client/.yarn ./installer/client/.yarn
-RUN cd installer/client && yarn install --immutable
-
-# Copy source and build
+# Copy src/client and installer/client fully (yarn binary is in .yarn/releases/)
 COPY src/client ./src/client
-RUN cd src/client && yarn build
-
 COPY installer/client ./installer/client
-RUN cd installer/client && yarn build
+
+# Install and build main app
+RUN cd src/client && yarn install --immutable && yarn build
+
+# Install and build installer client
+RUN cd installer/client && yarn install --immutable && yarn build
 
 
 # Stage 2: Install PHP production dependencies
@@ -29,15 +19,11 @@ FROM composer:2 AS composer-builder
 
 WORKDIR /build
 
-COPY src/composer.json src/composer.lock ./src/
 COPY src /build/src
+COPY bin /build/bin
+COPY installer /build/installer
 
-RUN composer install --no-dev --optimize-autoloader --classmap-authoritative -d src
-
-COPY devTools/core/composer.json devTools/core/composer.lock ./devTools/core/
-COPY devTools/core /build/devTools/core
-
-RUN composer install --no-dev --optimize-autoloader -d devTools/core
+RUN composer install --no-dev --optimize-autoloader --classmap-authoritative --ignore-platform-reqs -d src
 
 
 # Stage 3: Runtime image
@@ -88,8 +74,9 @@ RUN { \
         echo 'opcache.enable_cli=1'; \
     } > /usr/local/etc/php/conf.d/opcache-recommended.ini
 
-# Enable Apache mod_rewrite
-RUN a2enmod rewrite headers
+# Enable Apache mod_rewrite and headers, suppress ServerName warning
+RUN a2enmod rewrite headers \
+    && echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
 WORKDIR /var/www/html
 
@@ -117,3 +104,10 @@ RUN mkdir -p lib/confs/cryptokeys src/cache src/log src/config/proxy \
     && chmod -R 775 lib/confs src/cache src/log src/config
 
 VOLUME ["/var/www/html/lib/confs", "/var/www/html/src/cache", "/var/www/html/src/log"]
+
+# Entrypoint: runs the CLI installer on first boot, then starts Apache
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["apache2-foreground"]
