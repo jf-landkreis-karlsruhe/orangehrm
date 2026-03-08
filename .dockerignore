@@ -1,0 +1,46 @@
+# Dev tooling
+devTools/
+Makefile
+build/
+phpunit.xml
+.php-cs-fixer.dist.php
+.php-cs-fixer.cache
+.phpunit.result.cache
+
+# Tests
+src/test/
+
+# Node source & build tooling (built assets are copied via multi-stage)
+src/client/
+installer/client/src/
+installer/client/node_modules/
+installer/client/.yarn/
+
+# Composer source (dependencies are installed in builder stage)
+src/composer.json
+src/composer.lock
+
+# Dev environment
+.env
+.env.dev.example
+docker-compose.dev.yml
+Dockerfile.dev.php
+Dockerfile.dev.node
+Dockerfile.dev.web
+
+# Git & CI
+.git/
+.github/
+
+# Generated / runtime files (must not be baked in)
+lib/confs/Conf.php
+lib/confs/cryptokeys/key.ohrm
+src/cache/
+src/log/
+coverage/
+
+# Docs
+orangehrm-quick-start-guide.html
+CHANGELOG.TXT
+SECURITY.md
+README.md

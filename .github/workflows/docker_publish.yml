@@ -40,14 +40,6 @@ jobs:
             type=semver,pattern={{major}}
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Extract OrangeHRM version from git tag
-        id: version
-        run: |
-          # Extract version from tag (e.g., v5.8.0 -> 5.8.0)
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "ohrm_version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Building OrangeHRM version: ${VERSION}"
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -56,8 +48,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            OHRM_VERSION=${{ steps.version.outputs.ohrm_version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -69,4 +59,3 @@ jobs:
           echo ""
           echo "Pull the image with:"
           echo "  docker pull ghcr.io/${{ github.repository }}:latest"
-          echo "  docker pull ghcr.io/${{ github.repository }}:${{ steps.version.outputs.ohrm_version }}"
