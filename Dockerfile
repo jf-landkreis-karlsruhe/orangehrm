@@ -88,7 +88,6 @@ COPY src/lib ./src/lib
 COPY src/plugins ./src/plugins
 COPY src/config ./src/config
 COPY bin ./bin
-COPY lib ./lib
 
 # Copy built assets from node-builder
 COPY --from=node-builder /build/web/dist ./web/dist
