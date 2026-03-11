@@ -1,0 +1,54 @@
+services:
+  app:
+    image: ghcr.io/jf-landkreis-karlsruhe/orangehrm:latest
+    # build: .   # uncomment to build from source instead of pulling
+    ports:
+      - "8080:80"
+    environment:
+      ORANGEHRM_DB_HOST: db
+      ORANGEHRM_DB_PORT: "3306"
+      ORANGEHRM_DB_NAME: ${ORANGEHRM_DB_NAME:-orangehrm}
+      ORANGEHRM_DB_USER: ${ORANGEHRM_DB_USER:-orangehrm}
+      ORANGEHRM_DB_PASSWORD: ${ORANGEHRM_DB_PASSWORD:?ORANGEHRM_DB_PASSWORD is required}
+      # Optional – override the default Admin credentials on first boot
+      # ORANGEHRM_ADMIN_USER: Admin
+      # ORANGEHRM_ADMIN_PASSWORD: Ohrm@1423
+    volumes:
+      - orangehrm-confs:/var/www/html/lib/confs
+      - orangehrm-cache:/var/www/html/src/cache
+      - orangehrm-log:/var/www/html/src/log
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: mariadb:10.7
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      MYSQL_DATABASE: ${ORANGEHRM_DB_NAME:-orangehrm}
+      MYSQL_USER: ${ORANGEHRM_DB_USER:-orangehrm}
+      MYSQL_PASSWORD: ${ORANGEHRM_DB_PASSWORD:?ORANGEHRM_DB_PASSWORD is required}
+    volumes:
+      - orangehrm-db:/var/lib/mysql
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-p${MYSQL_ROOT_PASSWORD}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  orangehrm-confs:
+  orangehrm-cache:
+  orangehrm-log:
+  orangehrm-db:

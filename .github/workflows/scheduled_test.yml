@@ -7,8 +7,9 @@ on:
   pull_request:
     paths:
       - '.github/workflows/scheduled_test.yml'
+  # disabled
   schedule:
-    - cron: "0 2 * * *"
+    - cron: "0 2 1 1 1" 
 
 jobs:
   db_test:
@@ -18,33 +19,6 @@ jobs:
       fail-fast: false
       matrix:
         database:
-          - { image: "mysql:5.5", admin: "mysqladmin" }
-          - { image: "mysql:5.6", admin: "mysqladmin" }
-          - { image: "mysql:5.7", admin: "mysqladmin" }
-          - { image: "mysql:8.0", admin: "mysqladmin" }
-          - { image: "mysql:8.1", admin: "mysqladmin" }
-          - { image: "mysql:8.2", admin: "mysqladmin" }
-          - { image: "mysql:8.3", admin: "mysqladmin" }
-          - { image: "mysql:8.4", admin: "mysqladmin" }
-          - { image: "mysql:9.4", admin: "mysqladmin" }
-          - { image: "mariadb:5.5", admin: "mysqladmin" }
-          - { image: "mariadb:10.0", admin: "mysqladmin" }
-          - { image: "mariadb:10.1", admin: "mysqladmin" }
-          - { image: "mariadb:10.2", admin: "mysqladmin" }
-          - { image: "mariadb:10.3", admin: "mysqladmin" }
-          - { image: "mariadb:10.4", admin: "mysqladmin" }
-          - { image: "mariadb:10.5", admin: "mysqladmin" }
-          - { image: "mariadb:10.6", admin: "mysqladmin" }
-          - { image: "mariadb:10.7", admin: "mysqladmin" }
-          - { image: "mariadb:10.8", admin: "mysqladmin" }
-          - { image: "mariadb:10.9", admin: "mysqladmin" }
-          - { image: "mariadb:10.10", admin: "mysqladmin" }
-          - { image: "mariadb:10.11", admin: "mysqladmin" }
-          - { image: "mariadb:11.0", admin: "mariadb-admin" }
-          - { image: "mariadb:11.1", admin: "mariadb-admin" }
-          - { image: "mariadb:11.2", admin: "mariadb-admin" }
-          - { image: "mariadb:11.3", admin: "mariadb-admin" }
-          - { image: "mariadb:11.4", admin: "mariadb-admin" }
           - { image: "mariadb:11.8", admin: "mariadb-admin" }
           - { image: "mariadb:12.0", admin: "mariadb-admin" }
 

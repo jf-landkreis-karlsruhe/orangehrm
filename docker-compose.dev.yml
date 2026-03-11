@@ -1,0 +1,95 @@
+services:
+  # PHP Development Container
+  php-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev.php
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    volumes:
+      - .:/app
+      - composer-cache:/tmp/composer-cache
+    environment:
+      - XDEBUG_MODE=${XDEBUG_MODE:-off}
+      - PHP_MEMORY_LIMIT=1G
+    depends_on:
+      mariadb-test:
+        condition: service_healthy
+    networks:
+      - orangehrm-dev
+
+  # Node.js Development Container
+  node-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev.node
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    volumes:
+      - .:/app
+    environment:
+      - COREPACK_ENABLE_STRICT=0
+      - CI=1
+    networks:
+      - orangehrm-dev
+
+  # Web Server (Apache + PHP) for local development
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev.web
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      mariadb-dev:
+        condition: service_healthy
+    networks:
+      - orangehrm-dev
+
+  # MariaDB for local development (persistent)
+  mariadb-dev:
+    image: mariadb:10.7
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: orangehrm_mysql
+    volumes:
+      - mariadb-dev-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - orangehrm-dev
+
+  # MariaDB Test Database
+  mariadb-test:
+    image: mariadb:10.7
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: orangehrm_mysql
+    tmpfs:
+      - /var/lib/mysql:rw,noexec,nosuid,size=1g
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - orangehrm-dev
+
+volumes:
+  composer-cache:
+    driver: local
+  mariadb-dev-data:
+    driver: local
+
+networks:
+  orangehrm-dev:
+    driver: bridge

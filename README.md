@@ -12,6 +12,64 @@ OrangeHRM is distributed in the hope that it will be useful, but WITHOUT ANY WAR
 
 ## Getting started
 
+### Docker Installation (Recommended)
+
+The easiest way to run OrangeHRM is using Docker. Images are automatically built and published to GitHub Container Registry (GHCR) for each release.
+
+**Using Docker Compose (recommended):**
+
+```bash
+# Create a .env file with your secrets
+cat > .env <<'EOF'
+MYSQL_ROOT_PASSWORD=change-me-root
+ORANGEHRM_DB_NAME=orangehrm
+ORANGEHRM_DB_USER=orangehrm
+ORANGEHRM_DB_PASSWORD=change-me
+EOF
+
+# Start OrangeHRM + MariaDB
+docker compose up -d
+```
+
+Open http://localhost in your browser. On first boot the installer runs automatically — this takes ~30 seconds. Subsequent starts are instant.
+
+**Default login credentials:**
+| Field | Value |
+|-------|-------|
+| Username | `Admin` |
+| Password | `Ohrm@1423` |
+
+Override the admin credentials on first boot via env vars:
+```bash
+ORANGEHRM_ADMIN_USER=MyAdmin
+ORANGEHRM_ADMIN_PASSWORD=MySecret123
+```
+
+**Environment variables:**
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `ORANGEHRM_DB_HOST` | yes | — | Database hostname |
+| `ORANGEHRM_DB_NAME` | yes | — | Database name |
+| `ORANGEHRM_DB_USER` | yes | — | Database username |
+| `ORANGEHRM_DB_PASSWORD` | yes | — | Database password |
+| `ORANGEHRM_DB_PORT` | no | `3306` | Database port |
+| `ORANGEHRM_ADMIN_USER` | no | `Admin` | Admin username (first boot only) |
+| `ORANGEHRM_ADMIN_PASSWORD` | no | `Ohrm@1423` | Admin password (first boot only) |
+
+**Pull a specific version:**
+```bash
+docker pull ghcr.io/jf-landkreis-karlsruhe/orangehrm:5.8
+```
+
+**Available platforms:**
+- `linux/amd64` (x86_64)
+- `linux/arm64` (ARM 64-bit)
+
+Docker images are automatically built and published when a new Git tag is pushed (e.g., `v5.8`, `v5.9.0`).
+
+### Manual Installation
+
 - Download the latest version of OrangeHRM Starter [here](https://sourceforge.net/projects/orangehrm/files/latest/download).
 
 - Prerequisites and environment set up for installing OrangeHRM Starter:
@@ -23,6 +81,109 @@ OrangeHRM is distributed in the hope that it will be useful, but WITHOUT ANY WAR
   - [OrangeHRM Starter Upgrade Guide](https://starterhelp.orangehrm.com/hc/en-us/articles/6937346912402-OrangeHRM-Starter-Upgrade-Guide-For-5x-versions-)
 
 - For further information on how to use the product please refer to the User Guides, Tutorial videos, and FAQs available on [Help Portal](https://starterhelp.orangehrm.com)
+
+## Local Development with Docker
+
+### Running OrangeHRM locally
+
+To start OrangeHRM in the browser:
+
+```bash
+# 1. Start the web server and database
+make serve
+
+# 2. First time only: install dependencies and set up the database
+make web-install
+```
+
+Open http://localhost:8080 in your browser.
+
+**Default login credentials:**
+| Field | Value |
+|-------|-------|
+| Username | `Admin` |
+| Password | `Ohrm@1423` |
+
+To stop the server:
+```bash
+make stop
+```
+
+The local database is persistent — data is retained across restarts.
+
+---
+
+### Running tests
+
+```bash
+# 1. Install all dependencies (PHP + Node)
+make install
+
+# 2. Set up the test database (run once)
+make test-setup
+
+# 3. Run all tests
+make test
+```
+
+> **Note:** The test database uses tmpfs (in-memory) and is wiped on every `docker compose down`. Re-run `make test-setup` after that.
+
+### Available Commands
+
+#### Setup & Installation
+| Command | Description |
+|---------|-------------|
+| `make install` | Install all dependencies (PHP + Node) |
+| `make install-php` | Install PHP dependencies with Composer |
+| `make install-node` | Install Node dependencies with Yarn |
+
+#### Local Server
+| Command | Description |
+|---------|-------------|
+| `make serve` | Start OrangeHRM at http://localhost:8080 |
+| `make web-install` | Install OrangeHRM into local database (first time only) |
+| `make stop` | Stop the local server |
+
+#### Testing
+| Command | Description |
+|---------|-------------|
+| `make test-setup` | Prepare test database (run once before `make test-php`) |
+| `make test` | Run all tests (PHPUnit + Jest) |
+| `make test-php` | Run PHPUnit tests |
+| `make test-php-coverage` | Run PHPUnit with code coverage |
+| `make test-node` | Run Jest tests (Vue unit tests) |
+| `make test-node-coverage` | Run Jest with code coverage |
+
+#### Linting
+| Command | Description |
+|---------|-------------|
+| `make lint` | Run all linters (PHP + Node) |
+| `make lint-php` | Check PHP coding standards |
+| `make lint-php-fix` | Fix PHP coding standards |
+| `make lint-node` | Check Node/Vue code with ESLint |
+
+#### Building
+| Command | Description |
+|---------|-------------|
+| `make build` | Full OrangeHRM build (like CI) |
+| `make build-client` | Build Vue client only |
+| `make build-installer` | Build installer client only |
+
+#### Database
+| Command | Description |
+|---------|-------------|
+| `make db-up` | Start test MariaDB container |
+| `make db-down` | Stop test MariaDB container |
+| `make db-install` | Install OrangeHRM into test database |
+| `make db-reset` | Reset test database |
+
+#### Development
+| Command | Description |
+|---------|-------------|
+| `make shell-php` | Open interactive PHP shell |
+| `make shell-node` | Open interactive Node shell |
+| `make clean` | Clean generated files and caches |
+| `make help` | Show all available commands |
 
 ## OrangeHRM Mobile App
 
