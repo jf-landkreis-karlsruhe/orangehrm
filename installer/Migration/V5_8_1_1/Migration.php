@@ -29,42 +29,42 @@ class Migration extends AbstractMigration
     public function up(): void
     {
         // Increase email field lengths to 120 characters (where currently less than 120)
-        
+
         // 1. Employee work email (50 -> 120)
         $this->getConnection()->executeStatement(
             'ALTER TABLE hs_hr_employee 
              MODIFY COLUMN emp_work_email VARCHAR(120) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci'
         );
-        
+
         // 2. Employee other email (50 -> 120)
         $this->getConnection()->executeStatement(
             'ALTER TABLE hs_hr_employee 
              MODIFY COLUMN emp_oth_email VARCHAR(120) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci'
         );
-        
+
         // 3. Candidate email (100 -> 120)
         $this->getConnection()->executeStatement(
             'ALTER TABLE ohrm_candidate 
              MODIFY COLUMN email VARCHAR(120) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL'
         );
-        
+
         // 4. Organization email (30 -> 120)
         $this->getConnection()->executeStatement(
             'ALTER TABLE ohrm_organization_gen_info 
              MODIFY COLUMN email VARCHAR(120) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci'
         );
-        
+
         // 5. Reset password email (60 -> 120)
         $this->getConnection()->executeStatement(
             'ALTER TABLE ohrm_reset_password_request 
              MODIFY COLUMN reset_email VARCHAR(120) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL'
         );
-        
+
         // Note: ohrm_email_subscriber.email stays at 255 (no change)
         // Note: ohrm_email_configuration.sent_as stays at 250 (no change)
-        
+
         // Increase username field length to 120 characters
-        
+
         // 6. User username (40 -> 120)
         $this->getConnection()->executeStatement(
             'ALTER TABLE ohrm_user 
