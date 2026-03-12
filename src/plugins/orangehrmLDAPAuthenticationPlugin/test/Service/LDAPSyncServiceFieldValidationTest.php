@@ -114,13 +114,13 @@ class LDAPSyncServiceFieldValidationTest extends KernelTestCase
         $this->assertEquals('Username length should be at least 5 characters', $logs[6]['message']);
         $this->assertEquals('uid=Garry.White,ou=hr,ou=users,dc=example,dc=org', $logs[6]['context'][0]);
 
-        $this->assertEquals('Username length should not exceed 40 characters', $logs[7]['message']);
+        $this->assertEquals('Username length should not exceed 120 characters', $logs[7]['message']);
         $this->assertEquals('uid=Jasmine.Morgan,ou=hr,ou=users,dc=example,dc=org', $logs[7]['context'][0]);
 
         $this->assertEquals('Employee Id length should not exceed 10 characters', $logs[8]['message']);
         $this->assertEquals('uid=John.Smith,ou=hr,ou=users,dc=example,dc=org', $logs[8]['context'][0]);
 
-        $this->assertEquals('Employee work email length should not exceed 50 characters', $logs[9]['message']);
+        $this->assertEquals('Employee work email length should not exceed 120 characters', $logs[9]['message']);
         $this->assertEquals('uid=Kevin.Mathews,ou=hr,ou=users,dc=example,dc=org', $logs[9]['context'][0]);
 
         $this->assertEquals('Invalid employee work email', $logs[10]['message']);
@@ -267,7 +267,7 @@ class LDAPSyncServiceFieldValidationTest extends KernelTestCase
             ],
             [ // exceed username max length
                 'dn' => 'uid=Jasmine.Morgan,ou=hr,ou=users,dc=example,dc=org',
-                'cn' => [str_repeat('abcde', 8) . 'f'],
+                'cn' => [str_repeat('abcde', 24) . 'f'],
                 'sn' => ['Morgan'],
                 'givenName' => ['Jasmine'],
                 'entryUUID' => [md5('uid=Jasmine.Morgan')],
@@ -275,7 +275,7 @@ class LDAPSyncServiceFieldValidationTest extends KernelTestCase
             ],
             [ // not exceed username max length
                 'dn' => 'uid=Jasmine.Morgan_2,ou=hr,ou=users,dc=example,dc=org',
-                'cn' => [str_repeat('abcde', 8)],
+                'cn' => [str_repeat('abcde', 24)],
                 'sn' => ['Morgan'],
                 'givenName' => ['Jasmine'],
                 'entryUUID' => [md5('uid=Jasmine.Morgan_2')],
@@ -304,7 +304,7 @@ class LDAPSyncServiceFieldValidationTest extends KernelTestCase
                 'givenName' => ['Kevin'],
                 'entryUUID' => [md5('uid=Kevin.Mathews')],
                 'employeeNumber' => ['0108'],
-                'mail' => [str_repeat('abcdef', 6) . 'abc@example.org']
+                'mail' => [str_repeat('abcdef', 18) . 'abc@example.org']
             ],
             [ // not exceed employee work email max length
                 'dn' => 'uid=Kevin.Mathews_2,ou=hr,ou=users,dc=example,dc=org',
@@ -313,7 +313,7 @@ class LDAPSyncServiceFieldValidationTest extends KernelTestCase
                 'givenName' => ['Kevin'],
                 'entryUUID' => [md5('uid=Kevin.Mathews_2')],
                 'employeeNumber' => ['00108'],
-                'mail' => [str_repeat('abcdef', 6) . 'ab@example.org']
+                'mail' => [str_repeat('abcdef', 17) . 'ab@example.org']
             ],
             [ // invalid employee work email
                 'dn' => 'uid=Peter.Anderson,ou=hr,ou=users,dc=example,dc=org',
