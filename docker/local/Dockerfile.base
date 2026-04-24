@@ -42,6 +42,15 @@ RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
         echo 'opcache.enable_cli=1'; \
     } > /usr/local/etc/php/conf.d/opcache-recommended.ini
 
+# Send PHP engine errors to stderr so they show up in `docker logs` /
+# `make local-logs`. Monolog application logs (src/log/*.log) are streamed
+# separately by docker-entrypoint.sh.
+RUN { \
+        echo 'log_errors = On'; \
+        echo 'error_log = /dev/stderr'; \
+        echo 'display_errors = Off'; \
+    } > /usr/local/etc/php/conf.d/zz-error-log.ini
+
 # Apache
 RUN a2enmod rewrite headers \
     && echo "ServerName localhost" >> /etc/apache2/apache2.conf

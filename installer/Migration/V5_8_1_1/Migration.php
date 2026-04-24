@@ -44,7 +44,7 @@ class Migration extends AbstractMigration
         
         // 3. Candidate email (100 -> 120)
         $this->getConnection()->executeStatement(
-            'ALTER TABLE ohrm_candidate 
+            'ALTER TABLE ohrm_job_candidate 
              MODIFY COLUMN email VARCHAR(120) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL'
         );
         
@@ -56,7 +56,7 @@ class Migration extends AbstractMigration
         
         // 5. Reset password email (60 -> 120)
         $this->getConnection()->executeStatement(
-            'ALTER TABLE ohrm_reset_password_request 
+            'ALTER TABLE ohrm_reset_password 
              MODIFY COLUMN reset_email VARCHAR(120) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL'
         );
         

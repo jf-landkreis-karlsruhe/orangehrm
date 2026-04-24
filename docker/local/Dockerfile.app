@@ -35,10 +35,12 @@ RUN mkdir -p lib/confs/cryptokeys src/cache src/log src/config/proxy \
 
 VOLUME ["/var/www/html/lib/confs", "/var/www/html/src/cache", "/var/www/html/src/log"]
 
-# Reuse the production entrypoint: it runs cli_install.php on first boot using
-# ORANGEHRM_DB_* / ORANGEHRM_ADMIN_* env vars, then hands off to Apache.
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+# Reuse the production entrypoint (runs cli_install.php on first boot using
+# ORANGEHRM_DB_* / ORANGEHRM_ADMIN_* env vars). The local wrapper additionally
+# tails Monolog logs to stderr so they show up in `make local-logs`.
+COPY docker-entrypoint.sh /usr/local/bin/orangehrm-entrypoint.sh
+COPY docker/local/local-entrypoint.sh /usr/local/bin/local-entrypoint.sh
+RUN chmod +x /usr/local/bin/orangehrm-entrypoint.sh /usr/local/bin/local-entrypoint.sh
 
-ENTRYPOINT ["docker-entrypoint.sh"]
+ENTRYPOINT ["local-entrypoint.sh"]
 CMD ["apache2-foreground"]
