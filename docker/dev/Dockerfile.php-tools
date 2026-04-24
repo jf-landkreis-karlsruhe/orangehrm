@@ -1,0 +1,89 @@
+# PHP tools image: PHP 8.3 + extensions + composer + xdebug.
+# Composer dependencies are installed into the image at build time.
+# At runtime the repo is bind-mounted to /app, but /app/src/vendor and
+# /app/devTools/core/vendor are anonymous volumes so the image-installed
+# vendors are not shadowed by the host.
+
+FROM php:8.3-cli-bookworm
+
+ARG UID=1000
+ARG GID=1000
+
+# System deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        unzip \
+        libzip-dev \
+        libfreetype6-dev \
+        libjpeg-dev \
+        libpng-dev \
+        libldap2-dev \
+        libicu-dev \
+        default-mysql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# PHP extensions (matches prod Dockerfile)
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-configure ldap --with-libdir=lib/$(uname -m)-linux-gnu/ \
+    && docker-php-ext-install -j"$(nproc)" \
+        pdo_mysql \
+        zip \
+        gd \
+        ldap \
+        intl \
+        opcache
+
+# Xdebug (off by default; enable via XDEBUG_MODE env)
+RUN pecl install xdebug-3.3.1 && docker-php-ext-enable xdebug \
+    && { \
+        echo "xdebug.mode=off"; \
+        echo "xdebug.start_with_request=trigger"; \
+        echo "xdebug.client_host=host.docker.internal"; \
+        echo "xdebug.client_port=9003"; \
+    } >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+
+# Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+ENV COMPOSER_HOME=/tmp/composer-cache \
+    COMPOSER_ALLOW_SUPERUSER=1 \
+    PHP_MEMORY_LIMIT=1G
+
+# CI uses `php8.3` as the binary name; mirror that so php-cs-fixer's --php flag
+# (which spawns the named PHP binary as a subprocess) matches CI exactly.
+RUN ln -s /usr/local/bin/php /usr/local/bin/php8.3
+
+# UID/GID mapping so files created in the container are owned by the host user
+RUN if getent group ${GID} > /dev/null 2>&1; then \
+        groupmod -n orangehrm $(getent group ${GID} | cut -d: -f1); \
+    else \
+        groupadd -g ${GID} orangehrm; \
+    fi \
+    && if getent passwd ${UID} > /dev/null 2>&1; then \
+        usermod -l orangehrm -g ${GID} -m -d /home/orangehrm $(getent passwd ${UID} | cut -d: -f1); \
+    else \
+        useradd -u ${UID} -g orangehrm -m -s /bin/bash orangehrm; \
+    fi
+
+WORKDIR /app
+
+# ---------------------------------------------------------------------------
+# Pre-install composer dependencies into the image.
+#
+# src/composer.json autoloads from many plugin paths and runs orm:generate-proxies
+# + cache:clear in post-autoload-dump, so we have to copy enough of the source
+# tree to make composer install succeed. These files are overlaid by the bind
+# mount at runtime; only the resulting vendor/ directories are kept (via
+# anonymous volumes declared in docker-compose.yml).
+# ---------------------------------------------------------------------------
+COPY --chown=${UID}:${GID} src/composer.json src/composer.lock /app/src/
+COPY --chown=${UID}:${GID} src/lib /app/src/lib
+COPY --chown=${UID}:${GID} src/plugins /app/src/plugins
+COPY --chown=${UID}:${GID} src/config /app/src/config
+COPY --chown=${UID}:${GID} installer /app/installer
+COPY --chown=${UID}:${GID} bin /app/bin
+COPY --chown=${UID}:${GID} devTools/core/composer.json devTools/core/composer.lock /app/devTools/core/
+
+USER orangehrm
+
+RUN composer install -d /app/src --no-interaction --no-progress --prefer-dist \
+    && composer install -d /app/devTools/core --no-interaction --no-progress --prefer-dist

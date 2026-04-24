@@ -28,3 +28,6 @@ src/test/functional/node_modules/
 src/client/coverage/
 coverage.tar.xz
 
+# Dev workflow stamp files
+docker/dev/.test-db-installed
+

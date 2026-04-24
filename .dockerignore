@@ -17,10 +17,7 @@ installer/client/node_modules/
 # Dev environment
 .env
 .env.dev.example
-docker-compose.dev.yml
-Dockerfile.dev.php
-Dockerfile.dev.node
-Dockerfile.dev.web
+docker/
 
 # Git & CI
 .git/

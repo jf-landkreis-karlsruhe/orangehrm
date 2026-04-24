@@ -84,19 +84,47 @@ Docker images are automatically built and published when a new Git tag is pushed
 
 ## Local Development with Docker
 
-### Running OrangeHRM locally
+Two independent workflows ship in this fork:
 
-To start OrangeHRM in the browser:
+1. **Tools containers** (`docker/dev/`) — pre-built PHP and Node images with all dependencies installed. Your working tree is bind-mounted in, so PHPUnit, Jest, and the linters run against the code on your disk; `fix-php` / `fix-js` write changes back to the host.
+2. **Local live app** (`docker/local/`) — a base image plus an app image that bakes the current code, runs `composer install` and `yarn build`, and serves the result via Apache. No mount, no live reload — exactly what would ship.
+
+### One-time setup
 
 ```bash
-# 1. Start the web server and database
-make serve
-
-# 2. First time only: install dependencies and set up the database
-make web-install
+make build-dev-images   # builds php-tools and node-tools images
 ```
 
-Open http://localhost:8080 in your browser.
+Re-run after changing `composer.lock` or any `yarn.lock`. Follow up with `make dev-down` to discard the cached `vendor/` and `node_modules` volumes.
+
+### Running tests
+
+```bash
+make test-php                     # PHPUnit (test DB is set up automatically on first run)
+make test-php ARGS="--testsuite Pim"
+make test-js                      # Jest unit tests in src/client
+make test-js  ARGS="--watch"
+```
+
+The test DB is installed once per dev session into `mariadb-test` (tmpfs). It is rebuilt automatically after `make dev-down`.
+
+### Linting and formatting
+
+```bash
+make lint        # lint-php + lint-js (read-only)
+make fix-php     # apply PHP coding-standard fixes
+make fix-js      # apply ESLint --fix in all JS workspaces
+```
+
+### Local live app
+
+```bash
+make local-build   # build the base image (cached) and the app image from current code
+make local-up      # http://localhost:8080  (first boot installs OrangeHRM, ~30s)
+make local-logs    # tail app logs
+make local-down    # stop (DB + install state are preserved in named volumes)
+make local-reset   # stop and wipe DB + install state (next local-up reinstalls)
+```
 
 **Default login credentials:**
 | Field | Value |
@@ -104,86 +132,14 @@ Open http://localhost:8080 in your browser.
 | Username | `Admin` |
 | Password | `Ohrm@1423` |
 
-To stop the server:
+Override the admin credentials before the first `make local-up`:
 ```bash
-make stop
+ORANGEHRM_ADMIN_USER=MyAdmin ORANGEHRM_ADMIN_PASSWORD=MySecret123 make local-up
 ```
 
-The local database is persistent — data is retained across restarts.
+### All make targets
 
----
-
-### Running tests
-
-```bash
-# 1. Install all dependencies (PHP + Node)
-make install
-
-# 2. Set up the test database (run once)
-make test-setup
-
-# 3. Run all tests
-make test
-```
-
-> **Note:** The test database uses tmpfs (in-memory) and is wiped on every `docker compose down`. Re-run `make test-setup` after that.
-
-### Available Commands
-
-#### Setup & Installation
-| Command | Description |
-|---------|-------------|
-| `make install` | Install all dependencies (PHP + Node) |
-| `make install-php` | Install PHP dependencies with Composer |
-| `make install-node` | Install Node dependencies with Yarn |
-
-#### Local Server
-| Command | Description |
-|---------|-------------|
-| `make serve` | Start OrangeHRM at http://localhost:8080 |
-| `make web-install` | Install OrangeHRM into local database (first time only) |
-| `make stop` | Stop the local server |
-
-#### Testing
-| Command | Description |
-|---------|-------------|
-| `make test-setup` | Prepare test database (run once before `make test-php`) |
-| `make test` | Run all tests (PHPUnit + Jest) |
-| `make test-php` | Run PHPUnit tests |
-| `make test-php-coverage` | Run PHPUnit with code coverage |
-| `make test-node` | Run Jest tests (Vue unit tests) |
-| `make test-node-coverage` | Run Jest with code coverage |
-
-#### Linting
-| Command | Description |
-|---------|-------------|
-| `make lint` | Run all linters (PHP + Node) |
-| `make lint-php` | Check PHP coding standards |
-| `make lint-php-fix` | Fix PHP coding standards |
-| `make lint-node` | Check Node/Vue code with ESLint |
-
-#### Building
-| Command | Description |
-|---------|-------------|
-| `make build` | Full OrangeHRM build (like CI) |
-| `make build-client` | Build Vue client only |
-| `make build-installer` | Build installer client only |
-
-#### Database
-| Command | Description |
-|---------|-------------|
-| `make db-up` | Start test MariaDB container |
-| `make db-down` | Stop test MariaDB container |
-| `make db-install` | Install OrangeHRM into test database |
-| `make db-reset` | Reset test database |
-
-#### Development
-| Command | Description |
-|---------|-------------|
-| `make shell-php` | Open interactive PHP shell |
-| `make shell-node` | Open interactive Node shell |
-| `make clean` | Clean generated files and caches |
-| `make help` | Show all available commands |
+Run `make help`.
 
 ## OrangeHRM Mobile App
 

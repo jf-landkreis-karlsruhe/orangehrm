@@ -1,0 +1,57 @@
+# Node tools image: Node 20 + Yarn 4 + pre-installed node_modules for all
+# three workspaces. The repo is bind-mounted to /app at runtime, but
+# node_modules paths are anonymous volumes so the image-installed deps are
+# preserved.
+
+FROM node:20-bookworm
+
+ARG UID=1000
+ARG GID=1000
+
+# UID/GID mapping for host-writable files (lint --fix, etc.)
+RUN if getent group ${GID} > /dev/null 2>&1; then \
+        groupmod -n orangehrm $(getent group ${GID} | cut -d: -f1); \
+    else \
+        groupadd -g ${GID} orangehrm; \
+    fi \
+    && if getent passwd ${UID} > /dev/null 2>&1; then \
+        usermod -l orangehrm -g ${GID} -m -d /home/orangehrm $(getent passwd ${UID} | cut -d: -f1); \
+    else \
+        useradd -u ${UID} -g orangehrm -m -s /bin/bash orangehrm; \
+    fi
+
+# Yarn 4 is shipped per-workspace via .yarn/releases; corepack picks it up
+# automatically from packageManager / yarnPath.
+RUN corepack enable
+
+ENV CI=1 \
+    COREPACK_ENABLE_STRICT=0 \
+    COREPACK_ENABLE_AUTO_PIN=0 \
+    YARN_CACHE_FOLDER=/home/orangehrm/.yarn-cache \
+    COREPACK_HOME=/home/orangehrm/.cache/node/corepack
+
+RUN mkdir -p /home/orangehrm/.yarn-cache /home/orangehrm/.cache/node/corepack \
+    && chown -R ${UID}:${GID} /home/orangehrm
+
+WORKDIR /app
+
+# ---------------------------------------------------------------------------
+# Pre-install node_modules for every JS workspace.
+# Copy package.json + yarn.lock + .yarnrc.yml + .yarn/releases (the yarn 4
+# binary) so corepack can run yarn install --immutable without network access
+# to a yarn distribution.
+# ---------------------------------------------------------------------------
+COPY --chown=${UID}:${GID} src/client/package.json src/client/yarn.lock src/client/.yarnrc.yml /app/src/client/
+COPY --chown=${UID}:${GID} src/client/.yarn/releases /app/src/client/.yarn/releases
+
+COPY --chown=${UID}:${GID} installer/client/package.json installer/client/yarn.lock installer/client/.yarnrc.yml /app/installer/client/
+COPY --chown=${UID}:${GID} installer/client/.yarn/releases /app/installer/client/.yarn/releases
+
+COPY --chown=${UID}:${GID} src/test/functional/package.json src/test/functional/yarn.lock src/test/functional/.yarnrc.yml /app/src/test/functional/
+COPY --chown=${UID}:${GID} src/test/functional/.yarn/releases /app/src/test/functional/.yarn/releases
+
+USER orangehrm
+
+RUN cd /app/src/client && yarn install --immutable
+RUN cd /app/installer/client && yarn install --immutable
+RUN cd /app/src/test/functional && yarn install --immutable

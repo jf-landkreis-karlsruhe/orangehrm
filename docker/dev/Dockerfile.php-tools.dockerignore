@@ -1,0 +1,27 @@
+# Build context for docker/dev/Dockerfile.php-tools.
+# Whitelist via "ignore everything, then re-include" so the context stays tiny.
+
+# Ignore everything by default
+*
+
+# Re-include the bits the PHP tools image actually needs
+!src/composer.json
+!src/composer.lock
+!src/lib/
+!src/plugins/
+!src/config/
+!installer/
+!bin/
+!devTools/core/composer.json
+!devTools/core/composer.lock
+
+# Within those, drop subdirs that are vendored, generated, or irrelevant
+src/vendor/
+devTools/core/vendor/
+src/cache/
+src/log/
+src/config/proxy/
+**/node_modules/
+**/.yarn/cache/
+**/.yarn/install-state.gz
+installer/client/

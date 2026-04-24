@@ -1,0 +1,23 @@
+# Build context for docker/dev/Dockerfile.node-tools.
+# Whitelist via "ignore everything, then re-include".
+
+*
+
+# Per-workspace package metadata + Yarn 4 binary
+!src/client/package.json
+!src/client/yarn.lock
+!src/client/.yarnrc.yml
+!src/client/.yarn/
+!installer/client/package.json
+!installer/client/yarn.lock
+!installer/client/.yarnrc.yml
+!installer/client/.yarn/
+!src/test/functional/package.json
+!src/test/functional/yarn.lock
+!src/test/functional/.yarnrc.yml
+!src/test/functional/.yarn/
+
+# Drop yarn cache + install-state from the context (huge, not needed)
+**/.yarn/cache/
+**/.yarn/install-state.gz
+**/node_modules/
