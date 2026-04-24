@@ -90,7 +90,7 @@ lint-php: .env ## Check PHP coding standards (matches CI: --php php8.3)
 	@$(DEV_COMPOSE) run --rm php-tools php devTools/core/console.php php-cs-fix --php php8.3
 
 fix-php: .env ## Apply PHP coding-standard fixes on host files
-	@$(DEV_COMPOSE) run --rm php-tools php devTools/core/console.php php-cs-fix --php php8.3 --fix
+	@$(DEV_COMPOSE) run --rm php-tools php devTools/core/console.php php-cs-fix --php php8.3
 
 lint-js: .env ## Lint all JS workspaces
 	@$(DEV_COMPOSE) run --rm node-tools sh -c "cd src/client && yarn lint"

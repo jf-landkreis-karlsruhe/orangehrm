@@ -88,6 +88,7 @@ class CandidateAPI extends Endpoint implements CrudEndpoint
     public const PARAMETER_DATE_OF_APPLICATION = 'dateOfApplication';
     public const PARAMETER_CONSENT_TO_KEEP_DATA = 'consentToKeepData';
 
+
     public const MODEL_DEFAULT = 'default';
     public const MODEL_CANDIDATE_LIST = 'list';
     public const MODEL_CANDIDATE_DETAILED = 'detailed';
