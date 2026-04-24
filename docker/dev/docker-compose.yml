@@ -1,0 +1,76 @@
+# Dev/test/lint stack. Repo is bind-mounted to /app; vendor and node_modules
+# directories are anonymous volumes so the image-installed deps survive the
+# bind mount.
+#
+# Rebuild after composer.lock or yarn.lock changes:
+#   make build-dev-images && make dev-down
+
+services:
+  php-tools:
+    build:
+      context: ../..
+      dockerfile: docker/dev/Dockerfile.php-tools
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    image: orangehrm-php-tools:latest
+    volumes:
+      - ../..:/app
+      - php-vendor:/app/src/vendor
+      - devtools-vendor:/app/devTools/core/vendor
+      - composer-cache:/tmp/composer-cache
+    environment:
+      - XDEBUG_MODE=${XDEBUG_MODE:-off}
+      - PHP_MEMORY_LIMIT=1G
+    depends_on:
+      mariadb-test:
+        condition: service_healthy
+    networks:
+      - orangehrm-dev
+
+  node-tools:
+    build:
+      context: ../..
+      dockerfile: docker/dev/Dockerfile.node-tools
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    image: orangehrm-node-tools:latest
+    volumes:
+      - ../..:/app
+      - client-node-modules:/app/src/client/node_modules
+      - installer-node-modules:/app/installer/client/node_modules
+      - functional-node-modules:/app/src/test/functional/node_modules
+    environment:
+      - CI=1
+      - COREPACK_ENABLE_STRICT=0
+    networks:
+      - orangehrm-dev
+
+  mariadb-test:
+    image: mariadb:10.7
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: orangehrm_mysql
+    tmpfs:
+      - /var/lib/mysql:rw,noexec,nosuid,size=1g
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - orangehrm-dev
+
+volumes:
+  php-vendor:
+  devtools-vendor:
+  composer-cache:
+  client-node-modules:
+  installer-node-modules:
+  functional-node-modules:
+
+networks:
+  orangehrm-dev:
+    driver: bridge
