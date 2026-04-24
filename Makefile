@@ -1,215 +1,134 @@
-.PHONY: help install install-php install-node test test-php test-php-coverage test-node test-node-coverage lint lint-php lint-php-fix lint-node lint-node-installer build build-client build-installer db-up db-down db-install db-reset shell-php shell-node clean
+.PHONY: help \
+        build-dev-images dev-down test-php test-js lint lint-php lint-js fix-php fix-js shell-php shell-js \
+        local-build local-up local-down local-logs local-reset
 
-# Colors for output
+# Colors
 BLUE := \033[0;34m
 GREEN := \033[0;32m
 YELLOW := \033[1;33m
-NC := \033[0m # No Color
+NC := \033[0m
 
-# Docker Compose command
-COMPOSE := docker compose -f docker-compose.dev.yml
+# Compose stacks
+DEV_COMPOSE   := docker compose -f docker/dev/docker-compose.yml
+LOCAL_COMPOSE := docker compose -f docker/local/docker-compose.yml
 
-# Check if .env exists, if not create it from example
+# Stamp file marking that the test DB has been installed in this dev session.
+# Lives inside docker/dev/ so it is git-ignored implicitly via gitignore patterns.
+TEST_DB_STAMP := docker/dev/.test-db-installed
+
+# Auto-create .env so UID/GID get baked into the dev images.
 .env:
 	@if [ ! -f .env ]; then \
-		echo "$(YELLOW)Creating .env file from .env.dev.example...$(NC)"; \
+		echo "$(YELLOW)Creating .env file...$(NC)"; \
 		if [ -f .env.dev.example ]; then \
 			cp .env.dev.example .env; \
 			echo "UID=$$(id -u)" >> .env; \
 			echo "GID=$$(id -g)" >> .env; \
-			echo "$(GREEN).env file created with your UID/GID$(NC)"; \
 		else \
 			echo "UID=$$(id -u)" > .env; \
 			echo "GID=$$(id -g)" >> .env; \
 			echo "XDEBUG_MODE=off" >> .env; \
-			echo "$(GREEN).env file created$(NC)"; \
 		fi; \
+		echo "$(GREEN).env created with your UID/GID$(NC)"; \
 	fi
 
-# Default target - show help
-help: ## Show this help message
-	@echo "$(BLUE)OrangeHRM Development Environment$(NC)"
+help: ## Show this help
+	@echo "$(BLUE)OrangeHRM dev workflow$(NC)"
 	@echo ""
-	@echo "$(GREEN)Available commands:$(NC)"
-	@awk 'BEGIN {FS = ":.*##"; printf "\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  $(BLUE)%-20s$(NC) %s\n", $$1, $$2 } /^##@/ { printf "\n$(YELLOW)%s$(NC)\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+	@echo "$(YELLOW)Tools (code is bind-mounted, vendor/node_modules live in the image):$(NC)"
+	@awk 'BEGIN {FS = ":.*##"} /^(build-dev-images|dev-down|test-php|test-js|lint|lint-php|lint-js|fix-php|fix-js|shell-php|shell-js):.*##/ { printf "  $(BLUE)%-20s$(NC) %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
+	@echo ""
+	@echo "$(YELLOW)Local live app (image built from current code, no mount):$(NC)"
+	@awk 'BEGIN {FS = ":.*##"} /^(local-build|local-up|local-down|local-logs|local-reset):.*##/ { printf "  $(BLUE)%-20s$(NC) %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 	@echo ""
 
-##@ Setup & Installation
+# ---------------------------------------------------------------------------
+# Dev/test images
+# ---------------------------------------------------------------------------
 
-install: .env install-php install-node ## Install all dependencies (PHP + Node)
-	@echo "$(GREEN)All dependencies installed successfully!$(NC)"
+build-dev-images: .env ## Build php-tools and node-tools images (run after composer.lock / yarn.lock changes)
+	@echo "$(BLUE)Building dev images...$(NC)"
+	@$(DEV_COMPOSE) build php-tools node-tools
+	@echo "$(YELLOW)Note: also run 'make dev-down' to discard old vendor/node_modules volumes.$(NC)"
 
-install-php: .env ## Install PHP dependencies with Composer
-	@echo "$(BLUE)Installing PHP dependencies...$(NC)"
-	@$(COMPOSE) run --rm php-test composer install -d src
-	@$(COMPOSE) run --rm php-test composer install -d devTools/core
-	@echo "$(GREEN)PHP dependencies installed!$(NC)"
+dev-down: .env ## Stop dev containers and remove anonymous volumes (clears test DB stamp)
+	@$(DEV_COMPOSE) down -v
+	@rm -f $(TEST_DB_STAMP)
 
-install-node: .env ## Install Node dependencies with Yarn
-	@echo "$(BLUE)Installing Node dependencies...$(NC)"
-	@$(COMPOSE) run --rm node-test bash -c "cd src/client && yarn install"
-	@$(COMPOSE) run --rm node-test bash -c "cd installer/client && yarn install"
-	@$(COMPOSE) run --rm node-test bash -c "cd src/test/functional && yarn install"
-	@echo "$(GREEN)Node dependencies installed!$(NC)"
-
-##@ Testing
-
-test: test-php test-node ## Run all tests (PHPUnit + Jest)
-
-test-setup: db-up db-install ## Prepare database for PHP tests (run once before test-php)
-	@echo "$(BLUE)Creating test database and fixtures...$(NC)"
-	@$(COMPOSE) run --rm php-test php devTools/core/console.php i:create-test-db -p root
-	@echo "$(GREEN)Test environment ready!$(NC)"
-
-test-php: .env ## Run PHPUnit tests
-	@echo "$(BLUE)Running PHPUnit tests...$(NC)"
-	@$(COMPOSE) run --rm php-test php -d memory_limit=1G ./src/vendor/bin/phpunit
-
-test-php-coverage: .env ## Run PHPUnit tests with coverage
-	@echo "$(BLUE)Running PHPUnit tests with coverage...$(NC)"
-	@$(COMPOSE) run --rm -e XDEBUG_MODE=coverage php-test ./src/vendor/bin/phpunit --coverage-html coverage -d memory_limit=1G
-	@echo "$(GREEN)Coverage report generated in coverage/$(NC)"
-
-test-node: .env ## Run Jest tests (Vue unit tests)
-	@echo "$(BLUE)Running Jest tests...$(NC)"
-	@$(COMPOSE) run --rm node-test bash -c "cd src/client && yarn test:unit"
-
-test-node-coverage: .env ## Run Jest tests with coverage
-	@echo "$(BLUE)Running Jest tests with coverage...$(NC)"
-	@$(COMPOSE) run --rm node-test bash -c "cd src/client && yarn test:unit --coverage"
-	@echo "$(GREEN)Coverage report generated in src/client/coverage/$(NC)"
-
-##@ Linting
-
-lint: lint-php lint-node ## Run all linters (PHP + Node)
-
-lint-php: .env ## Check PHP coding standards (read-only)
-	@echo "$(BLUE)Checking PHP coding standards...$(NC)"
-	@$(COMPOSE) run --rm php-test php devTools/core/console.php php-cs-fix --php php
-
-lint-php-fix: .env ## Fix PHP coding standards
-	@echo "$(BLUE)Fixing PHP coding standards...$(NC)"
-	@$(COMPOSE) run --rm php-test php devTools/core/console.php php-cs-fix --php php --fix
-	@echo "$(GREEN)PHP coding standards fixed!$(NC)"
-
-lint-node: .env ## Check Node/Vue code with ESLint
-	@echo "$(BLUE)Linting client code...$(NC)"
-	@$(COMPOSE) run --rm node-test bash -c "cd src/client && yarn lint"
-	@echo "$(BLUE)Linting installer code...$(NC)"
-	@$(COMPOSE) run --rm node-test bash -c "cd installer/client && yarn lint"
-	@echo "$(BLUE)Linting Cypress tests...$(NC)"
-	@$(COMPOSE) run --rm node-test bash -c "cd src/test/functional && yarn lint"
-
-lint-node-installer: .env ## Check installer code with ESLint
-	@echo "$(BLUE)Linting installer code...$(NC)"
-	@$(COMPOSE) run --rm node-test bash -c "cd installer/client && yarn lint"
-
-##@ Building
-
-build: .env ## Full OrangeHRM build (like CI)
-	@echo "$(BLUE)Running full build...$(NC)"
-	@$(COMPOSE) run --rm node-test bash -c "cd src/client && yarn build"
-	@$(COMPOSE) run --rm node-test bash -c "cd installer/client && yarn build"
-	@echo "$(GREEN)Build completed!$(NC)"
-
-build-client: .env ## Build Vue client only
-	@echo "$(BLUE)Building Vue client...$(NC)"
-	@$(COMPOSE) run --rm node-test bash -c "cd src/client && yarn build"
-	@echo "$(GREEN)Client built!$(NC)"
-
-build-installer: .env ## Build installer client only
-	@echo "$(BLUE)Building installer client...$(NC)"
-	@$(COMPOSE) run --rm node-test bash -c "cd installer/client && yarn build"
-	@echo "$(GREEN)Installer built!$(NC)"
-
-##@ Database
-
-db-up: .env ## Start MariaDB container
-	@echo "$(BLUE)Starting MariaDB...$(NC)"
-	@$(COMPOSE) up -d mariadb-test
-	@echo "$(GREEN)MariaDB started! Waiting for health check...$(NC)"
-	@$(COMPOSE) exec mariadb-test mysqladmin ping -h localhost -proot --wait=30 && echo "$(GREEN)MariaDB is ready!$(NC)" || echo "$(YELLOW)MariaDB might still be starting...$(NC)"
-
-db-down: .env ## Stop MariaDB container
-	@echo "$(BLUE)Stopping MariaDB...$(NC)"
-	@$(COMPOSE) down mariadb-test
-	@echo "$(GREEN)MariaDB stopped!$(NC)"
-
-db-install: .env ## Install OrangeHRM via CLI
-	@echo "$(BLUE)Installing OrangeHRM...$(NC)"
+# Install OrangeHRM into the test DB and create the test fixtures DB.
+# Idempotent via a stamp file; cleared on dev-down (tmpfs is wiped anyway).
+$(TEST_DB_STAMP): .env
+	@echo "$(BLUE)Setting up test database...$(NC)"
+	@$(DEV_COMPOSE) up -d mariadb-test
+	@echo "$(BLUE)Waiting for MariaDB...$(NC)"
+	@$(DEV_COMPOSE) exec -T mariadb-test sh -c 'until mysqladmin ping -h localhost -proot --silent; do sleep 1; done'
+	@echo "$(BLUE)Clearing previous install state (lib/confs/Conf.php, cryptokeys)...$(NC)"
+	@rm -f lib/confs/Conf.php
+	@rm -rf lib/confs/cryptokeys
 	@sed -i.bak \
 		-e 's/hostName: 127\.0\.0\.1/hostName: mariadb-test/' \
 		-e 's/isExistingDatabase: n/isExistingDatabase: y/' \
 		installer/cli_install_config.yaml
-	@$(COMPOSE) run --rm php-test php installer/cli_install.php; \
-		EXIT_CODE=$$?; \
+	@$(DEV_COMPOSE) run --rm php-tools php installer/cli_install.php; \
+		EXIT=$$?; \
 		mv installer/cli_install_config.yaml.bak installer/cli_install_config.yaml; \
-		exit $$EXIT_CODE
-	@echo "$(GREEN)OrangeHRM installed!$(NC)"
+		if [ $$EXIT -ne 0 ]; then exit $$EXIT; fi
+	@$(DEV_COMPOSE) run --rm php-tools php devTools/core/console.php i:create-test-db -p root
+	@mkdir -p $(dir $(TEST_DB_STAMP))
+	@touch $(TEST_DB_STAMP)
+	@echo "$(GREEN)Test database ready.$(NC)"
 
-db-reset: .env ## Reset OrangeHRM installation
-	@echo "$(BLUE)Resetting OrangeHRM installation...$(NC)"
-	@$(COMPOSE) run --rm php-test php devTools/core/console.php i:reset
-	@echo "$(GREEN)Database reset!$(NC)"
+test-php: $(TEST_DB_STAMP) ## Run PHPUnit (pass extra flags via ARGS=...)
+	@$(DEV_COMPOSE) run --rm php-tools php -d memory_limit=1G ./src/vendor/bin/phpunit $(ARGS)
 
-##@ Development
+test-js: .env ## Run Jest unit tests (pass extra flags via ARGS=...)
+	@$(DEV_COMPOSE) run --rm node-tools sh -c "cd src/client && yarn test:unit $(ARGS)"
 
-serve: .env ## Start OrangeHRM locally at http://localhost:8080
-	@echo "$(BLUE)Starting OrangeHRM web server...$(NC)"
-	@$(COMPOSE) up -d web mariadb-dev
-	@echo "$(GREEN)OrangeHRM running at http://localhost:8080$(NC)"
-	@echo "$(YELLOW)First time? Run: make web-install$(NC)"
+lint: lint-php lint-js ## Run all linters (no fixes)
 
-web-install: .env ## Install OrangeHRM into the local dev database (run once after make serve)
-	@echo "$(BLUE)Installing PHP dependencies...$(NC)"
-	@$(COMPOSE) run --rm php-test composer install -d src
-	@$(COMPOSE) run --rm php-test composer install -d devTools/core
-	@echo "$(BLUE)Clearing previous installation state...$(NC)"
-	@rm -f lib/confs/Conf.php
-	@rm -rf lib/confs/cryptokeys
-	@echo "$(BLUE)Running OrangeHRM installer...$(NC)"
-	@sed -i.bak \
-		-e 's/hostName: 127\.0\.0\.1/hostName: mariadb-dev/' \
-		-e 's/isExistingDatabase: n/isExistingDatabase: y/' \
-		installer/cli_install_config.yaml
-	@$(COMPOSE) run --rm php-test php installer/cli_install.php; \
-		EXIT_CODE=$$?; \
-		mv installer/cli_install_config.yaml.bak installer/cli_install_config.yaml; \
-		exit $$EXIT_CODE
-	@echo "$(GREEN)OrangeHRM installed! Open http://localhost:8080$(NC)"
+lint-php: .env ## Check PHP coding standards (matches CI: --php php8.3)
+	@$(DEV_COMPOSE) run --rm php-tools php devTools/core/console.php php-cs-fix --php php8.3
 
-stop: .env ## Stop OrangeHRM local server
-	@echo "$(BLUE)Stopping OrangeHRM...$(NC)"
-	@$(COMPOSE) stop web mariadb-dev
-	@echo "$(GREEN)Stopped!$(NC)"
+fix-php: .env ## Apply PHP coding-standard fixes on host files
+	@$(DEV_COMPOSE) run --rm php-tools php devTools/core/console.php php-cs-fix --php php8.3 --fix
 
-shell-php: .env ## Open interactive PHP shell
-	@echo "$(BLUE)Opening PHP shell...$(NC)"
-	@$(COMPOSE) run --rm php-test bash
+lint-js: .env ## Lint all JS workspaces
+	@$(DEV_COMPOSE) run --rm node-tools sh -c "cd src/client && yarn lint"
+	@$(DEV_COMPOSE) run --rm node-tools sh -c "cd installer/client && yarn lint"
+	@$(DEV_COMPOSE) run --rm node-tools sh -c "cd src/test/functional && yarn lint"
 
-shell-node: .env ## Open interactive Node shell
-	@echo "$(BLUE)Opening Node shell...$(NC)"
-	@$(COMPOSE) run --rm node-test bash
+fix-js: .env ## Apply ESLint --fix in all JS workspaces (writes to host files)
+	@$(DEV_COMPOSE) run --rm node-tools sh -c "cd src/client && yarn lint --fix"
+	@$(DEV_COMPOSE) run --rm node-tools sh -c "cd installer/client && yarn lint --fix"
+	@$(DEV_COMPOSE) run --rm node-tools sh -c "cd src/test/functional && yarn lint --fix"
 
-clean: ## Clean generated files and caches
-	@echo "$(BLUE)Cleaning generated files...$(NC)"
-	@rm -rf coverage/
-	@rm -rf src/client/coverage/
-	@rm -rf src/client/node_modules/
-	@rm -rf installer/client/node_modules/
-	@rm -rf src/test/functional/node_modules/
-	@rm -rf src/vendor/
-	@rm -rf devTools/core/vendor/
-	@echo "$(GREEN)Cleanup completed!$(NC)"
+shell-php: .env ## Interactive shell in php-tools
+	@$(DEV_COMPOSE) run --rm php-tools bash
 
-##@ Docker Management
+shell-js: .env ## Interactive shell in node-tools
+	@$(DEV_COMPOSE) run --rm node-tools bash
 
-docker-build: .env ## Build Docker images
-	@echo "$(BLUE)Building Docker images...$(NC)"
-	@$(COMPOSE) build
-	@echo "$(GREEN)Docker images built!$(NC)"
+# ---------------------------------------------------------------------------
+# Local "live app": base + app images, MariaDB, no bind mount
+# ---------------------------------------------------------------------------
 
-docker-clean: ## Remove all containers and volumes
-	@echo "$(YELLOW)Removing all containers and volumes...$(NC)"
-	@$(COMPOSE) down -v
-	@echo "$(GREEN)Cleanup completed!$(NC)"
+local-build: ## Build the base image (cached) and the app image from current code
+	@echo "$(BLUE)Building local base image...$(NC)"
+	@docker build -t orangehrm-local-base:latest -f docker/local/Dockerfile.base .
+	@echo "$(BLUE)Building local app image (composer install + yarn build)...$(NC)"
+	@$(LOCAL_COMPOSE) build app
+
+local-up: ## Start the local live app at http://localhost:8080
+	@$(LOCAL_COMPOSE) up -d
+	@echo "$(GREEN)Local app: http://localhost:8080$(NC)"
+	@echo "$(YELLOW)First boot runs cli_install.php (~30s). Tail with 'make local-logs'.$(NC)"
+
+local-down: ## Stop local live app (DB and install state are preserved)
+	@$(LOCAL_COMPOSE) down
+
+local-logs: ## Tail logs of the local app container
+	@$(LOCAL_COMPOSE) logs -f app
+
+local-reset: ## Stop and wipe DB + install state volumes (next local-up reinstalls)
+	@$(LOCAL_COMPOSE) down -v
+	@echo "$(GREEN)Local volumes removed.$(NC)"

@@ -1,0 +1,60 @@
+# Local "live app" stack: app image (built from current code) + MariaDB.
+# The first `make local-up` triggers cli_install.php via docker-entrypoint.sh
+# and takes ~30s; subsequent starts are instant. DB and install state persist
+# in named volumes; use `make local-reset` to wipe them.
+
+services:
+  app:
+    image: orangehrm-local-app:latest
+    build:
+      context: ../..
+      dockerfile: docker/local/Dockerfile.app
+      args:
+        BASE_IMAGE: orangehrm-local-base:latest
+    ports:
+      - "8080:80"
+    environment:
+      ORANGEHRM_DB_HOST: mariadb
+      ORANGEHRM_DB_PORT: "3306"
+      ORANGEHRM_DB_NAME: orangehrm
+      ORANGEHRM_DB_USER: orangehrm
+      ORANGEHRM_DB_PASSWORD: orangehrm
+      ORANGEHRM_ADMIN_USER: ${ORANGEHRM_ADMIN_USER:-Admin}
+      ORANGEHRM_ADMIN_PASSWORD: ${ORANGEHRM_ADMIN_PASSWORD:-Ohrm@1423}
+    volumes:
+      - confs:/var/www/html/lib/confs
+      - cache:/var/www/html/src/cache
+      - logs:/var/www/html/src/log
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - orangehrm-local
+
+  mariadb:
+    image: mariadb:10.7
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: orangehrm
+      MYSQL_USER: orangehrm
+      MYSQL_PASSWORD: orangehrm
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - orangehrm-local
+
+volumes:
+  db:
+  confs:
+  cache:
+  logs:
+
+networks:
+  orangehrm-local:
+    driver: bridge

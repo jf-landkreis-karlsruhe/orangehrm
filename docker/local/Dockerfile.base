@@ -1,0 +1,60 @@
+# Local "live app" base image: PHP 8.3 + Apache + extensions + composer + Node.
+# Contains no application code. Reused by Dockerfile.app and is rebuilt only
+# when the toolchain changes (rare).
+
+FROM php:8.3-apache-bookworm
+
+RUN set -ex; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        git \
+        unzip \
+        curl \
+        ca-certificates \
+        gnupg \
+        libfreetype6-dev \
+        libjpeg-dev \
+        libpng-dev \
+        libzip-dev \
+        libldap2-dev \
+        libicu-dev \
+    ; \
+    docker-php-ext-configure gd --with-freetype --with-jpeg; \
+    docker-php-ext-configure ldap --with-libdir=lib/$(uname -m)-linux-gnu/; \
+    docker-php-ext-install -j"$(nproc)" \
+        gd \
+        opcache \
+        intl \
+        pdo_mysql \
+        zip \
+        ldap \
+    ; \
+    rm -rf /var/lib/apt/lists/*
+
+# Production php.ini + opcache (matches prod Dockerfile)
+RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
+    && { \
+        echo 'opcache.memory_consumption=128'; \
+        echo 'opcache.interned_strings_buffer=8'; \
+        echo 'opcache.max_accelerated_files=4000'; \
+        echo 'opcache.revalidate_freq=60'; \
+        echo 'opcache.fast_shutdown=1'; \
+        echo 'opcache.enable_cli=1'; \
+    } > /usr/local/etc/php/conf.d/opcache-recommended.ini
+
+# Apache
+RUN a2enmod rewrite headers \
+    && echo "ServerName localhost" >> /etc/apache2/apache2.conf
+
+# Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+ENV COMPOSER_HOME=/tmp/composer-cache \
+    COMPOSER_ALLOW_SUPERUSER=1
+
+# Node 20 + corepack (for the Vue build during the app-image build)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/* \
+    && corepack enable
+
+WORKDIR /var/www/html
