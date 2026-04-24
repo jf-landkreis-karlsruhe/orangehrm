@@ -1,306 +1,88 @@
-# OrangeHRM Development Guide for AI Coding Agents
+# AGENTS.md
 
-This document provides essential information for AI coding agents working on the OrangeHRM codebase.
+Fork of OrangeHRM. PHP 7.4/8.x monolith + Vue 3 SPA, dockerized dev workflow added by this fork. See `README.md` for user-facing setup; this file is for agent-specific gotchas.
 
-## Project Overview
+## Repo shape
 
-OrangeHRM is a comprehensive HR Management System built with:
-- **Backend**: PHP 7.4+/8.0+ with custom Symfony-based framework, Doctrine ORM
-- **Frontend**: Vue 3 + TypeScript, custom component library (@ohrm/oxd)
-- **Architecture**: Plugin-based modular system with 22 HR module plugins
-- **License**: GPL v3
+- PHP code lives in `src/plugins/orangehrm<Name>Plugin/` (~22 plugins). PSR-4 mapping is in `src/composer.json` (e.g. `orangehrmPimPlugin` → `OrangeHRM\Pim\…`; all entities collapse into `OrangeHRM\Entity\…`).
+- Each plugin owns `Api/ Controller/ Dao/ Service/ entity/ test/ config/`. Plugin tests are wired into named suites in `phpunit.xml` (e.g. `--testsuite Pim`).
+- Two independent JS apps with separate `package.json`/`yarn.lock` (Yarn 4 Berry via per-workspace `.yarn/releases`):
+  - `src/client` → main Vue SPA, built to `web/dist`.
+  - `installer/client` → installer UI, built to `installer/client/dist`.
+- Two Composer roots: `src/` (app) and `devTools/core/` (CLI tools). No top-level package manifest.
+- Cypress workspace `src/test/functional/` exists but local Cypress runs are out of scope (the CI workflow uses an external repo `orangehrm-os-dev-environment`).
 
-## Build, Test & Lint Commands
+## Two Docker workflows (added by this fork)
 
-### PHP Backend
+Always go through the Makefile. Never run `composer`, `phpunit`, `yarn`, or `php` on the host — they will not match the PHP 8.3 / Node 20 / extension setup.
 
-```bash
-# Install dependencies
-composer install -d src
+1. **Tools containers** — `docker/dev/` (`Dockerfile.php-tools`, `Dockerfile.node-tools`, `docker-compose.yml`). Composer vendors and `node_modules` are baked **into the image at build time**; the working tree is bind-mounted to `/app` at runtime. The vendor and `node_modules` paths are anonymous volumes so the bind mount does not shadow them.
+2. **Local live app** — `docker/local/` (`Dockerfile.base`, `Dockerfile.app`, `docker-compose.yml`). Base image has the runtime stack (PHP-Apache + Node + composer); the app image bakes the current source, runs `composer install` and `yarn build`, and serves via Apache. No mount, no live reload.
 
-# Run all PHPUnit tests
-phpunit
+The production top-level `Dockerfile` and `docker_publish.yml` are unrelated to either of these and unchanged.
 
-# Run tests for specific plugin/suite
-phpunit --testsuite Admin
-phpunit --testsuite Leave
-phpunit --testsuite Core
-
-# Run a specific test file
-phpunit src/plugins/orangehrmAdminPlugin/test/Api/EducationAPITest.php
-
-# Run a specific test method
-phpunit --filter testGetAll src/plugins/orangehrmAdminPlugin/test/Api/EducationAPITest.php
-
-# Check PHP code style
-bin/console php-cs-fix --dry-run
-
-# Fix PHP code style
-bin/console php-cs-fix
-
-# Generate Doctrine proxies
-bin/console orm:generate-proxies
-
-# Clear cache
-bin/console cache:clear
-```
-
-### Vue/TypeScript Frontend
-
-```bash
-# Install dependencies (use Yarn, not npm)
-cd src/client
-yarn install
-
-# Development server
-yarn serve
-
-# Development build with watch mode
-yarn dev
-
-# Production build
-yarn build
-
-# Run Jest unit tests
-yarn test:unit
-
-# Lint (fails on any warnings)
-yarn lint
-
-# For installer client
-cd installer/client
-yarn install
-yarn dev / yarn build / yarn lint
-```
-
-### E2E Tests (Cypress)
-
-```bash
-cd src/test/functional
-yarn install
-
-# Run Cypress tests headless
-yarn test
-
-# Open Cypress interactive mode
-yarn open
-
-# Lint functional tests
-yarn lint
-```
-
-## Code Style Guidelines
-
-### PHP Standards
-
-**File Headers**: All PHP files must include GPL v3 license header (see example files)
-
-**PSR-12 Compliance**: Code follows PSR-12 standard with these additions:
-- Array syntax: Use short syntax `[]` not `array()`
-- No unused imports
-- Nullable type declarations for default null values: `?Type $var = null`
-- Doctrine annotation indentation enabled
-
-**Namespacing**:
-- Production code: `OrangeHRM\{PluginName}\{Layer}\{ClassName}`
-- Test code: `OrangeHRM\Tests\{PluginName}\{Layer}\{ClassName}`
-- Examples:
-  - `OrangeHRM\Admin\Service\CompanyStructureService`
-  - `OrangeHRM\Core\Api\V2\Endpoint`
-  - `OrangeHRM\Tests\Admin\Api\EducationAPITest`
-
-**Naming Conventions**:
-- Classes: PascalCase (e.g., `CompanyStructureService`, `EducationAPI`)
-- Methods: camelCase (e.g., `getSubunitById`, `saveSubunit`)
-- Properties: camelCase with type hints
-- Constants: UPPER_SNAKE_CASE
-- Test files: `{ClassName}Test.php`
-
-**Type Declarations**:
-- Always use type hints for parameters and return types
-- Use nullable types: `?Type` or union types where appropriate
-- Use typed properties with visibility: `private ?CompanyStructureDao $dao = null;`
-
-**Documentation**:
-- DocBlocks for all public/protected methods with `@param` and `@return` tags
-- Class-level DocBlocks for complex classes
-- No inline comments unless explaining complex logic
-
-**Error Handling**:
-- Use custom exceptions from `OrangeHRM\Core\Api\V2\Exception\*`
-- Common exceptions: `RecordNotFoundException`, `InvalidParamException`, `ForbiddenException`, `BadRequestException`
-- Validation uses `OrangeHRM\Core\Api\V2\Validator\*` classes
-
-### TypeScript/Vue Standards
-
-**File Headers**: All .vue and .ts files must include GPL v3 license header in comments
-
-**ESLint Configuration**:
-- Extends: Vue 3 recommended, TypeScript recommended, Prettier
-- Max warnings: 0 (no warnings allowed)
-- ECMAScript: 2020
-
-**Prettier Configuration**:
-```javascript
-{
-  bracketSpacing: false,
-  jsxBracketSameLine: true,
-  singleQuote: true,
-  trailingComma: 'all',
-}
-```
-
-**Naming Conventions**:
-- Components: PascalCase filenames (e.g., `SubmitButton.vue`)
-- Files: kebab-case for non-components (e.g., `datefns.ts`)
-- Test files: `{name}.spec.ts` in `__tests__/` directory
-- Variables/functions: camelCase
-- Constants: UPPER_SNAKE_CASE
-- Types/Interfaces: PascalCase
-
-**Vue 3 Patterns**:
-- Use `<script setup>` or Options API (both acceptable, check existing code in module)
-- Component names must be PascalCase
-- Props: Use TypeScript types or PropType
-- Emits: Declare all emits explicitly
-- Composables: Use `use*` prefix (e.g., `useForm`, `useDateFormat`)
-
-**Import Organization**:
-1. Vue/external libraries
-2. Internal dependencies from `@ohrm/*` or `@/*` aliases
-3. Relative imports
-4. Type imports should use `import type`
-
-**TypeScript**:
-- Strict mode enabled
-- Avoid `any` type - use proper types or `unknown`
-- Use interfaces for object shapes
-- Path aliases: `@/*` and `@ohrm/*` resolve to `src/*`
-
-## Plugin Architecture
-
-OrangeHRM has 22 plugins in `src/plugins/orangehrm{Name}Plugin/`. Standard plugin structure:
+## First run
 
 ```
-orangehrm{Name}Plugin/
-├── Api/                    # REST API endpoints (V2)
-│   └── V2/
-├── Controller/             # Web controllers
-├── Dao/                    # Data Access Objects
-├── Service/                # Business logic layer
-├── entity/                 # Doctrine entities
-├── Dto/                    # Data Transfer Objects
-├── Traits/                 # Shared traits
-├── config/                 # Plugin configuration
-├── Menu/                   # Menu configurations
-└── test/                   # Unit tests
+make build-dev-images   # build php-tools + node-tools images (bakes vendor + node_modules)
+make test-php           # auto-installs the test DB on first run
 ```
 
-**Key Patterns**:
-- **Service Layer**: Business logic in `Service/` classes, injected via DI
-- **DAO Pattern**: Database access in `Dao/` classes
-- **API Layer**: REST endpoints extend `Endpoint`, `CrudEndpoint`, `CollectionEndpoint`, or `ResourceEndpoint`
-- **Entities**: Doctrine entities in `entity/` directory with annotations
-- **Validation**: Use `ParamRule` and validation rules from `Core\Api\V2\Validator\Rules`
+After changing `composer.lock` or any `yarn.lock`, **rebuild and discard the cached vendor volumes**:
 
-## Testing Patterns
-
-### PHPUnit Tests
-
-- Location: `src/plugins/{plugin}/test/`
-- Extend: `EndpointIntegrationTestCase` for API tests, `TestCase` for unit tests
-- Fixtures: YAML files alongside test files (e.g., `EducationAPITest.yml`)
-- Test data: Use `TestDataService` for database setup
-- Groups: Use `@group` annotations (e.g., `@group Admin`, `@group APIv2`)
-- Data providers: Name with `dataProviderFor{TestName}` pattern
-- Method naming: `test{MethodName}` (e.g., `testGetAll`, `testCreate`)
-
-### Jest Tests
-
-- Location: `src/client/src/**/__tests__/*.spec.ts`
-- Test structure: `describe()` blocks for grouping, `test()` or `it()` for cases
-- Vue Testing: Use `@vue/test-utils` for component tests
-- Coverage: HTML reports generated
-
-### Cypress Tests
-
-- Location: `src/test/functional/cypress/e2e/`
-- Database helpers: Custom tasks for `db:reset`, `db:snapshot`, `db:restore`, `db:truncate`
-- Snapshots enable test isolation with database savepoints
-
-## Common Tasks
-
-### Adding a New API Endpoint
-
-1. Create class in `src/plugins/{plugin}/Api/V2/{Name}API.php`
-2. Extend `CrudEndpoint`, `CollectionEndpoint`, or `ResourceEndpoint`
-3. Implement required methods: `getOne`, `getAll`, `create`, `update`, `delete`
-4. Add validation rules in `get{Method}ValidationRules()` methods
-5. Register in plugin configuration
-6. Add test class in `src/plugins/{plugin}/test/Api/{Name}APITest.php`
-
-### Adding a New Service
-
-1. Create class in `src/plugins/{plugin}/Service/{Name}Service.php`
-2. Add DAO dependency with getter/setter pattern
-3. Implement business logic methods
-4. Add type hints for all methods
-5. Register in DI container if needed
-6. Add unit tests in `test/Service/{Name}ServiceTest.php`
-
-### Adding a Vue Component
-
-1. Create `.vue` file in appropriate directory (e.g., `src/client/src/core/components/`)
-2. Add GPL license header in comment block
-3. Use PascalCase for component name
-4. Add TypeScript types for props/emits
-5. Follow existing component patterns (check @ohrm/oxd components)
-6. Add unit test in `__tests__/{name}.spec.ts`
-
-## Important Notes
-
-- **No multi-word warning**: Vue multi-word component name rule is disabled
-- **Zero warnings policy**: All linting must pass with `--max-warnings=0`
-- **Strict typing**: Both PHP and TypeScript use strict type checking
-- **GPL v3**: All files must include GPL v3 license header
-- **Yarn only**: Use Yarn 4.1.0 for package management, not npm
-- **PSR-4 autoloading**: Follow namespace conventions strictly
-- **Test coverage**: Maintain test coverage for all new code
-- **Database migrations**: Use migration system for schema changes (see `installer/Migration/`)
-
-## Console Commands Reference
-
-```bash
-bin/console list                        # List all commands
-bin/console orm:generate-proxies        # Generate Doctrine proxies
-bin/console cache:clear                 # Clear application cache
-bin/console i:create-test-db            # Create test database
-bin/console i:reinstall                 # Reinstall application
-bin/console php-cs-fix                  # Fix PHP coding standards
-bin/console generate-open-api-doc       # Generate API documentation
+```
+make build-dev-images && make dev-down
 ```
 
-## File Locations Quick Reference
+`make dev-down` removes the anonymous volumes that hold the previous vendor/node_modules — without it the new image's deps stay shadowed by the stale volumes.
 
-- PHP source: `src/plugins/{plugin}/`
-- Vue source: `src/client/src/`
-- PHP tests: `src/plugins/{plugin}/test/`
-- Vue tests: `src/client/src/**/__tests__/`
-- E2E tests: `src/test/functional/cypress/e2e/`
-- Entities: `src/plugins/{plugin}/entity/`
-- Migrations: `installer/Migration/`
-- Config: `src/config/`
-- Web root: `web/`
-- Built assets: `web/dist/` (gitignored)
+## Test DB lifecycle
 
-## CI/CD
+`make test-php` depends on `docker/dev/.test-db-installed` (a stamp file). The first invocation per dev session boots `mariadb-test` (tmpfs), runs `installer/cli_install.php`, then `i:create-test-db`. The stamp is wiped by `make dev-down` (because tmpfs is wiped anyway).
 
-GitHub Actions run:
-- PHP CS Fixer (code style)
-- PHPUnit (with coverage)
-- Jest unit tests
-- ESLint for all Vue/TS code
-- Cypress E2E tests
-- API documentation generation
+`make test-php` and `make test-js` accept extra arguments via `ARGS=`:
 
-All checks must pass before merging.
+```
+make test-php ARGS="--testsuite Pim"
+make test-php ARGS="--filter testFoo src/plugins/orangehrmPimPlugin/test/Dao/SomeTest.php"
+make test-js  ARGS="--coverage"
+```
+
+For raw PHPUnit access use `make shell-php` and call `php -d memory_limit=1G ./src/vendor/bin/phpunit ...` directly.
+
+## Lint gotchas (CI will reject otherwise)
+
+- `make lint-php` runs `php-cs-fix --php php8.3` (matches CI exactly).
+- CI fails the lint job if running the fixer produces *any* diff (`git status --porcelain` check). Run `make fix-php` before pushing.
+- `make lint-js` runs ESLint in all three JS workspaces; failing in any one fails the job. `vue-cli-service lint` is invoked with `--max-warnings=0`.
+- Use `make fix-php` and `make fix-js` to write fixes back to the host (UID/GID is mapped at image build time via `.env`).
+
+## API doc check
+
+CI runs `php devTools/core/console.php generate-open-api-doc --throw` (no Make target). Run it inside `make shell-php` after touching API controllers or OpenAPI annotations.
+
+## Doctrine / entity changes
+
+Composer's `post-autoload-dump` regenerates proxies and clears cache (`bin/console orm:generate-proxies`, `bin/console cache:clear`). If you bypass composer (e.g. only edit entities), run those two manually inside `make shell-php`, otherwise stale proxies will mask the change.
+
+## Installation state
+
+Install state lives in `lib/confs/Conf.php` and `lib/confs/cryptokeys/`. The app considers itself uninstalled iff those are absent.
+
+- The `make test-php` setup target `sed`-mutates `installer/cli_install_config.yaml` in place and restores it from `.bak` on exit. **If interrupted**, restore manually (`mv installer/cli_install_config.yaml.bak installer/cli_install_config.yaml`) before retrying.
+- For the local live app, install state is held in named volumes (`confs`, `cache`, `logs`, `db`); `make local-reset` wipes them so the next `make local-up` re-runs `cli_install.php`.
+
+## Local live app Make targets
+
+- `make local-build` — builds `orangehrm-local-base:latest` (cached) then `orangehrm-local-app:latest` from the current code.
+- `make local-up` / `make local-down` / `make local-logs` / `make local-reset`.
+- The app image reuses the production `docker-entrypoint.sh`, so `ORANGEHRM_DB_*` and `ORANGEHRM_ADMIN_*` env vars work the same way as in production. The compose file pre-sets DB env vars; admin overrides come from the host environment.
+
+## Production image / release
+
+- Top-level `Dockerfile` is the 3-stage prod build (node-builder → composer-builder → `php:8.3-apache`). Not used by `make`.
+- Pushing a `v*` tag triggers `.github/workflows/docker_publish.yml` → multi-arch (amd64/arm64) image to `ghcr.io/<repo>`.
+
+## CI matrix
+
+`.github/workflows/test.yml` runs PHPUnit + Jest twice (MySQL 5.7 and MariaDB 10.3) on PHP 8.3, plus a separate `composer_check` on PHP 8.3 and 8.4. Local `make test-php` only covers MariaDB 10.7.
