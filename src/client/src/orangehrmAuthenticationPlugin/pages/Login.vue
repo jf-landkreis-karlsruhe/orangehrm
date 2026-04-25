@@ -181,7 +181,8 @@ export default {
     hasKeycloakProvider() {
       return this.authenticators.some(
         (a) =>
-          typeof a.url === 'string' && a.url.toLowerCase().includes('jf-landkreis-karlsruhe.de'),
+          typeof a.url === 'string' &&
+          a.url.toLowerCase().includes('jf-landkreis-karlsruhe.de'),
       );
     },
     displayAuthenticators() {
