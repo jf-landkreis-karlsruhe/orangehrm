@@ -38,55 +38,65 @@
           <oxd-text tag="p">Password : admin123</oxd-text>
         </oxd-sheet>
       </div>
-      <oxd-form
-        ref="loginForm"
-        method="post"
-        :action="submitUrl"
-        @submit-valid="onSubmit"
-      >
-        <input name="_token" :value="token" type="hidden" />
+      <div :hidden="hasKeycloakProvider" class="orangehrm-credentials-login">
+        <oxd-form
+          ref="loginForm"
+          method="post"
+          :action="submitUrl"
+          @submit-valid="onSubmit"
+        >
+          <input name="_token" :value="token" type="hidden" />
 
-        <oxd-form-row>
-          <oxd-input-field
-            v-model="username"
-            name="username"
-            :label="$t('general.username')"
-            label-icon="person"
-            :placeholder="$t('auth.username')"
-            :rules="rules.username"
-            autofocus
-          />
-        </oxd-form-row>
+          <oxd-form-row>
+            <oxd-input-field
+              v-model="username"
+              name="username"
+              :label="$t('general.username')"
+              label-icon="person"
+              :placeholder="$t('auth.username')"
+              :rules="rules.username"
+              autofocus
+            />
+          </oxd-form-row>
 
-        <oxd-form-row>
-          <oxd-input-field
-            v-model="password"
-            name="password"
-            :label="$t('general.password')"
-            label-icon="key"
-            :placeholder="$t('auth.password')"
-            type="password"
-            :rules="rules.password"
-          />
-        </oxd-form-row>
+          <oxd-form-row>
+            <oxd-input-field
+              v-model="password"
+              name="password"
+              :label="$t('general.password')"
+              label-icon="key"
+              :placeholder="$t('auth.password')"
+              type="password"
+              :rules="rules.password"
+            />
+          </oxd-form-row>
 
-        <oxd-form-actions class="orangehrm-login-action">
-          <oxd-button
-            class="orangehrm-login-button"
-            display-type="main"
-            :label="$t('auth.login')"
-            type="submit"
-          />
-        </oxd-form-actions>
-        <div class="orangehrm-login-forgot">
-          <oxd-text class="orangehrm-login-forgot-header" @click="navigateUrl">
-            {{ $t('auth.forgot_password') }}?
-          </oxd-text>
-        </div>
-      </oxd-form>
+          <oxd-form-actions class="orangehrm-login-action">
+            <oxd-button
+              class="orangehrm-login-button"
+              display-type="main"
+              :label="$t('auth.login')"
+              type="submit"
+            />
+          </oxd-form-actions>
+          <div class="orangehrm-login-forgot">
+            <oxd-text
+              class="orangehrm-login-forgot-header"
+              @click="navigateUrl"
+            >
+              {{ $t('auth.forgot_password') }}?
+            </oxd-text>
+          </div>
+        </oxd-form>
+      </div>
       <template v-if="authenticators.length > 0">
-        <oxd-divider class="orangehrm-login-seperator"></oxd-divider>
-        <social-media-auth :authenticators="authenticators"></social-media-auth>
+        <oxd-divider
+          v-if="!hasKeycloakProvider"
+          class="orangehrm-login-seperator"
+        ></oxd-divider>
+        <social-media-auth
+          :authenticators="displayAuthenticators"
+        ></social-media-auth>
       </template>
     </div>
     <div class="orangehrm-login-footer">
@@ -167,6 +177,23 @@ export default {
   computed: {
     submitUrl() {
       return urlFor('/auth/validate');
+    },
+    hasKeycloakProvider() {
+      return this.authenticators.some(
+        (a) =>
+          typeof a.url === 'string' && a.url.toLowerCase().includes('jf-landkreis-karlsruhe.de'),
+      );
+    },
+    displayAuthenticators() {
+      return this.authenticators.map((a) => {
+        if (
+          typeof a.url === 'string' &&
+          a.url.toLowerCase().includes('jf-landkreis-karlsruhe.de')
+        ) {
+          return {...a, label: 'Jugendfeuerwehr-Login'};
+        }
+        return a;
+      });
     },
   },
 
