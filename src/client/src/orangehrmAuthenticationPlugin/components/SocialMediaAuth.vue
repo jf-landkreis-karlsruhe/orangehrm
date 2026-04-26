@@ -17,11 +17,6 @@
  */
  -->
 <template>
-  <div>
-    <oxd-text tag="p" class="orangehrm-social-auth-header">
-      {{ $t('general.or_login_with') }}
-    </oxd-text>
-  </div>
   <div class="orangehrm-social-auth">
     <auth-button
       v-for="authenticator in socialAuthenticators"
