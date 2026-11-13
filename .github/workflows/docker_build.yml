@@ -17,4 +17,112 @@ jobs:
 
       - name: Build the Docker image
         run: |
-          docker build . --file Dockerfile
+          docker build . --file Dockerfile --tag orangehrm/orangehrm:latest
+
+      - name: Start database
+        run: |
+          docker network create ohrm-smoke
+          docker run -d --name ohrm-db --network ohrm-smoke \
+            -e MARIADB_ROOT_PASSWORD=root \
+            -e MARIADB_DATABASE=orangehrm \
+            -e MARIADB_USER=orangehrm \
+            -e MARIADB_PASSWORD=orangehrm \
+            mariadb:10.7
+
+      # The entrypoint waits for the DB and runs cli_install.php on first boot
+      # before Apache starts, so this also exercises a fresh install.
+      - name: Start the container
+        run: |
+          docker run -d --name ohrm-smoke --network ohrm-smoke -p 8080:80 \
+            -e ORANGEHRM_DB_HOST=ohrm-db \
+            -e ORANGEHRM_DB_NAME=orangehrm \
+            -e ORANGEHRM_DB_USER=orangehrm \
+            -e ORANGEHRM_DB_PASSWORD=orangehrm \
+            orangehrm/orangehrm:latest
+
+      - name: Smoke test (install + login page)
+        run: |
+          echo "Waiting for the install to finish and the login page to render..."
+          for i in $(seq 1 90); do
+            if [ "$(docker inspect -f '{{.State.Running}}' ohrm-smoke)" != "true" ]; then
+              echo "::error::Container exited before the login page was served."
+              exit 1
+            fi
+            code="$(curl -sL -o response.html -w '%{http_code}' http://localhost:8080/web/index.php/auth/login || true)"
+            echo "Attempt $i: HTTP $code"
+            if [ "$code" = "200" ] && grep -qi 'OrangeHRM' response.html; then
+              echo "Login page rendered successfully (HTTP 200, OrangeHRM page served)."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Login page did not render within the timeout (last HTTP: ${code:-none})."
+          exit 1
+
+      - name: Screenshot the login page
+        if: always()
+        continue-on-error: true
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+          cat > shot.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          const browser = await chromium.launch();
+          const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+          await page.goto('http://localhost:8080/web/index.php/auth/login', { waitUntil: 'networkidle', timeout: 60000 });
+          await page.screenshot({ path: 'login.png', fullPage: true });
+          await browser.close();
+          EOF
+          node shot.mjs
+
+      - name: Capture container logs
+        if: always()
+        run: docker logs ohrm-smoke > docker-logs.txt 2>&1 || true
+
+      - name: Upload container logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-logs
+          path: docker-logs.txt
+          if-no-files-found: ignore
+
+      - name: Upload login page response
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: login-response
+          path: response.html
+          if-no-files-found: ignore
+
+      - name: Upload login page screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: login-screenshot
+          path: login.png
+          if-no-files-found: ignore
+
+      - name: Publish screenshot to job summary
+        if: always()
+        continue-on-error: true
+        run: |
+          {
+            echo "## Docker smoke test"
+            echo ""
+            if [ -f login.png ]; then
+              echo "### Login page screenshot"
+              echo ""
+              # data: URIs may be stripped by GitHub's markdown CSP; the
+              # login-screenshot artifact is the reliable fallback.
+              echo "<img src=\"data:image/png;base64,$(base64 -w0 login.png)\" width=\"900\" alt=\"Login page\" />"
+            else
+              echo "_No screenshot was captured — see the docker-logs artifact._"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Tear down
+        if: always()
+        run: |
+          docker rm -f ohrm-smoke ohrm-db || true
+          docker network rm ohrm-smoke || true

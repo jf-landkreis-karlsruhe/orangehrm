@@ -31,3 +31,10 @@ coverage.tar.xz
 # Dev workflow stamp files
 docker/dev/.test-db-installed
 
+# --- AI coding agents ---
+.claude/
+.cursor/
+CLAUDE.local.md
+.aider*
+.gemini/
+.codex/
