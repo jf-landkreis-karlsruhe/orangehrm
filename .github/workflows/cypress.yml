@@ -1,6 +1,8 @@
 name: Cypress
 
-on: [ push, pull_request ]
+# Manual only: the external orangehrm-os-dev-environment (PHP 8.0 / MySQL 5.5)
+# no longer builds, and it does not exercise this fork's own Docker stack.
+on: workflow_dispatch
 
 jobs:
   cypress:
