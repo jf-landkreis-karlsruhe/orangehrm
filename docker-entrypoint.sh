@@ -22,6 +22,8 @@ if [ ! -f "$CONF_FILE" ]; then
     ORANGEHRM_DB_PORT="${ORANGEHRM_DB_PORT:-3306}"
     ORANGEHRM_ADMIN_USER="${ORANGEHRM_ADMIN_USER:-Admin}"
     ORANGEHRM_ADMIN_PASSWORD="${ORANGEHRM_ADMIN_PASSWORD:-Ohrm@1423}"
+    ORANGEHRM_ADMIN_FIRST_NAME="${ORANGEHRM_ADMIN_FIRST_NAME:-OrangeHRM}"
+    ORANGEHRM_ADMIN_LAST_NAME="${ORANGEHRM_ADMIN_LAST_NAME:-Admin}"
 
     # Wait for the database to be reachable (up to 60s)
     echo "[entrypoint] Waiting for database at ${ORANGEHRM_DB_HOST}:${ORANGEHRM_DB_PORT}..."
@@ -72,8 +74,8 @@ organization:
 admin:
   adminUserName: ${ORANGEHRM_ADMIN_USER}
   adminPassword: ${ORANGEHRM_ADMIN_PASSWORD}
-  adminEmployeeFirstName: OrangeHRM
-  adminEmployeeLastName: Admin
+  adminEmployeeFirstName: ${ORANGEHRM_ADMIN_FIRST_NAME}
+  adminEmployeeLastName: ${ORANGEHRM_ADMIN_LAST_NAME}
   workEmail: admin@example.com
   contactNumber: ~
   registrationConsent: true

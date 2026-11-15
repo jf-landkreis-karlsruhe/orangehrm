@@ -10,7 +10,7 @@ Fork of OrangeHRM. PHP 7.4/8.x monolith + Vue 3 SPA, dockerized dev workflow add
   - `src/client` → main Vue SPA, built to `web/dist`.
   - `installer/client` → installer UI, built to `installer/client/dist`.
 - Two Composer roots: `src/` (app) and `devTools/core/` (CLI tools). No top-level package manifest.
-- Cypress workspace `src/test/functional/` exists but local Cypress runs are out of scope (the CI workflow uses an external repo `orangehrm-os-dev-environment`).
+- Cypress workspace `src/test/functional/`: local Cypress runs are out of scope. CI (`.github/workflows/cypress.yml`, only on pushes to `main` plus manual `workflow_dispatch`) runs it against the `docker/local` stack plus the override `docker/local/docker-compose.cypress.yml` (admin Jacqueline White / `Jacqueline@OHRM123`, mounts `src/test/functional/tools` because `.dockerignore` excludes `src/test/`). Upstream's external `orangehrm-os-dev-environment` repo is no longer used.
 
 ## Two Docker workflows (added by this fork)
 
@@ -76,7 +76,7 @@ Install state lives in `lib/confs/Conf.php` and `lib/confs/cryptokeys/`. The app
 
 - `make local-build` — builds `orangehrm-local-base:latest` (cached) then `orangehrm-local-app:latest` from the current code.
 - `make local-up` / `make local-down` / `make local-logs` / `make local-reset`.
-- The app image reuses the production `docker-entrypoint.sh`, so `ORANGEHRM_DB_*` and `ORANGEHRM_ADMIN_*` env vars work the same way as in production. The compose file pre-sets DB env vars; admin overrides come from the host environment.
+- The app image reuses the production `docker-entrypoint.sh`, so `ORANGEHRM_DB_*` and `ORANGEHRM_ADMIN_*` env vars (incl. optional `ORANGEHRM_ADMIN_FIRST_NAME` / `ORANGEHRM_ADMIN_LAST_NAME`) work the same way as in production. The compose file pre-sets DB env vars; admin overrides come from the host environment.
 
 ## Production image / release
 
@@ -86,3 +86,29 @@ Install state lives in `lib/confs/Conf.php` and `lib/confs/cryptokeys/`. The app
 ## CI matrix
 
 `.github/workflows/test.yml` runs PHPUnit + Jest twice (MySQL 5.7 and MariaDB 10.3) on PHP 8.3, plus a separate `composer_check` on PHP 8.3 and 8.4. Local `make test-php` only covers MariaDB 10.7.
+
+`.github/workflows/php_test.yml` (`php_test`, PHPUnit on PHP 7.4–8.5) runs on pull requests and pushes to `main`. The long-running `.github/workflows/scheduled_test.yml` (`db_test` on MariaDB 11.8/12.0) and Cypress run only on pushes to `main`.
+
+## Upstream skills (`.agents/`)
+
+Upstream ships architecture/convention skills under `.agents/skills/` (catalog: `.agents/skills/README.md`). They are useful references for plugins, REST, entities, migrations etc. This file stays authoritative: where they conflict (dev environment, Docker, CI, test commands), follow the Makefile workflow above, not upstream's `dev-environment` skill or `/onboard`.
+
+## Syncing with upstream
+
+This fork never pushes upstream; it periodically merges `orangehrm/orangehrm` `main`, and fork changes win on conflicts.
+
+One-time setup per clone:
+
+```
+git remote add upstream https://github.com/orangehrm/orangehrm.git
+git remote set-url --push upstream DISABLE
+git config remote.upstream.tagOpt --no-tags   # upstream v* tags would trigger docker_publish.yml if pushed
+git config rerere.enabled true
+```
+
+Each sync: `git fetch upstream`, branch `chore/merge-upstream-<version>` off `main`, `git merge upstream/main`, then:
+
+- Do **not** use `-X ours` — it silently drops upstream hunks (incl. security fixes) in files we touched. Resolve conflicts per file; take ours for files the fork rewrote (`Dockerfile`, `README.md`, `AGENTS.md`, `docker-entrypoint.sh`, workflows).
+- **`AppSetupUtility::MIGRATIONS_MAP` order matters.** `getVersionsInRange()` walks array order, not version order, starting after the DB's `instance.version`. Append newly merged upstream migrations *after* every existing entry (fork ones included), otherwise DBs already on a fork version skip them. Fork migrations are named `<upstream-version>.N` (e.g. `5.9.0.1`) and also appended at the end. `Config::PRODUCT_VERSION`, `build/build.xml` and `AboutOrganizationTestCase.yaml` must equal the last map key.
+- Rebuild dev images (`make build-dev-images && make dev-down`), run lint, tests and the OpenAPI check, then open a PR and merge it with a **merge commit** (never squash, or the next sync loses the merge base).
+- `docker-entrypoint.sh` only installs; existing deployments need `php installer/console upgrade:run` after deploying a version with new migrations.

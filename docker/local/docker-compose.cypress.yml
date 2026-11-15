@@ -1,0 +1,18 @@
+# Override for running the Cypress suite (src/test/functional) against the
+# local live app. Used by .github/workflows/cypress.yml:
+#
+#   docker compose -f docker/local/docker-compose.yml \
+#                  -f docker/local/docker-compose.cypress.yml up -d
+#
+# Set ORANGEHRM_ADMIN_PASSWORD=Jacqueline@OHRM123 in the environment so the
+# admin matches cypress/fixtures/user.json.
+
+services:
+  app:
+    environment:
+      ORANGEHRM_ADMIN_FIRST_NAME: Jacqueline
+      ORANGEHRM_ADMIN_LAST_NAME: White
+    volumes:
+      # .dockerignore excludes src/test/, but prepare.php and the
+      # functional-testing plugin have to be inside the container.
+      - ../../src/test/functional/tools:/var/www/html/src/test/functional/tools
