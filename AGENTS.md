@@ -87,6 +87,8 @@ Install state lives in `lib/confs/Conf.php` and `lib/confs/cryptokeys/`. The app
 
 `.github/workflows/test.yml` runs PHPUnit + Jest twice (MySQL 5.7 and MariaDB 10.3) on PHP 8.3, plus a separate `composer_check` on PHP 8.3 and 8.4. Local `make test-php` only covers MariaDB 10.7.
 
+`.github/workflows/scheduled_test.yml` (`db_test` on MariaDB 11.8/12.0, `php_test` on PHP 7.4–8.5) and Cypress run only on pushes to `main`, not on pull requests.
+
 ## Upstream skills (`.agents/`)
 
 Upstream ships architecture/convention skills under `.agents/skills/` (catalog: `.agents/skills/README.md`). They are useful references for plugins, REST, entities, migrations etc. This file stays authoritative: where they conflict (dev environment, Docker, CI, test commands), follow the Makefile workflow above, not upstream's `dev-environment` skill or `/onboard`.
