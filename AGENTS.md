@@ -10,7 +10,7 @@ Fork of OrangeHRM. PHP 7.4/8.x monolith + Vue 3 SPA, dockerized dev workflow add
   - `src/client` → main Vue SPA, built to `web/dist`.
   - `installer/client` → installer UI, built to `installer/client/dist`.
 - Two Composer roots: `src/` (app) and `devTools/core/` (CLI tools). No top-level package manifest.
-- Cypress workspace `src/test/functional/` exists but local Cypress runs are out of scope (the CI workflow uses an external repo `orangehrm-os-dev-environment`).
+- Cypress workspace `src/test/functional/`: local Cypress runs are out of scope. CI (`.github/workflows/cypress.yml`) runs it against the `docker/local` stack plus the override `docker/local/docker-compose.cypress.yml` (admin Jacqueline White / `Jacqueline@OHRM123`, mounts `src/test/functional/tools` because `.dockerignore` excludes `src/test/`). Upstream's external `orangehrm-os-dev-environment` repo is no longer used.
 
 ## Two Docker workflows (added by this fork)
 
@@ -76,7 +76,7 @@ Install state lives in `lib/confs/Conf.php` and `lib/confs/cryptokeys/`. The app
 
 - `make local-build` — builds `orangehrm-local-base:latest` (cached) then `orangehrm-local-app:latest` from the current code.
 - `make local-up` / `make local-down` / `make local-logs` / `make local-reset`.
-- The app image reuses the production `docker-entrypoint.sh`, so `ORANGEHRM_DB_*` and `ORANGEHRM_ADMIN_*` env vars work the same way as in production. The compose file pre-sets DB env vars; admin overrides come from the host environment.
+- The app image reuses the production `docker-entrypoint.sh`, so `ORANGEHRM_DB_*` and `ORANGEHRM_ADMIN_*` env vars (incl. optional `ORANGEHRM_ADMIN_FIRST_NAME` / `ORANGEHRM_ADMIN_LAST_NAME`) work the same way as in production. The compose file pre-sets DB env vars; admin overrides come from the host environment.
 
 ## Production image / release
 
