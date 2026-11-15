@@ -1,6 +1,9 @@
 name: Cypress
 
-on: [ push, pull_request ]
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 
 # Runs the functional suite against the fork's docker/local stack
 # (app image built from this checkout + MariaDB).

@@ -10,7 +10,7 @@ Fork of OrangeHRM. PHP 7.4/8.x monolith + Vue 3 SPA, dockerized dev workflow add
   - `src/client` → main Vue SPA, built to `web/dist`.
   - `installer/client` → installer UI, built to `installer/client/dist`.
 - Two Composer roots: `src/` (app) and `devTools/core/` (CLI tools). No top-level package manifest.
-- Cypress workspace `src/test/functional/`: local Cypress runs are out of scope. CI (`.github/workflows/cypress.yml`) runs it against the `docker/local` stack plus the override `docker/local/docker-compose.cypress.yml` (admin Jacqueline White / `Jacqueline@OHRM123`, mounts `src/test/functional/tools` because `.dockerignore` excludes `src/test/`). Upstream's external `orangehrm-os-dev-environment` repo is no longer used.
+- Cypress workspace `src/test/functional/`: local Cypress runs are out of scope. CI (`.github/workflows/cypress.yml`, only on pushes to `main` plus manual `workflow_dispatch`) runs it against the `docker/local` stack plus the override `docker/local/docker-compose.cypress.yml` (admin Jacqueline White / `Jacqueline@OHRM123`, mounts `src/test/functional/tools` because `.dockerignore` excludes `src/test/`). Upstream's external `orangehrm-os-dev-environment` repo is no longer used.
 
 ## Two Docker workflows (added by this fork)
 
