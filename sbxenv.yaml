@@ -1,0 +1,25 @@
+# Docker Sandboxes (sbx) environment for running Claude Code on this repo.
+# Start with `make sandbox` (= `sbx env run`). Host setup: see README.md.
+#
+# The sandbox is a microVM built from the workload kit in .sbx/orangehrm:
+# Claude Code plus PHP 8.3, Composer, Node 20 and MariaDB, so make test-php,
+# lint and fix-* run natively. It also has its own Docker Engine for
+# make local-*, without access to the host Docker daemon.
+#
+# sbx mounts this file read-only into the sandbox; only edit it on the host.
+schemaVersion: "1"
+name: orangehrm
+agent: orangehrm   # the workload kit below
+workspace: .
+
+kits:
+  - ./.sbx/orangehrm
+
+ports:
+  # make local-up -> http://localhost:8080 on the host
+  - sandbox: 8080
+    host: 8080
+
+sandboxOptions:
+  cpus: 4
+  memory: 8g
