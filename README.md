@@ -137,6 +137,59 @@ Override the admin credentials before the first `make local-up`:
 ORANGEHRM_ADMIN_USER=MyAdmin ORANGEHRM_ADMIN_PASSWORD=MySecret123 make local-up
 ```
 
+### Claude Code in a Docker Sandbox
+
+[Docker Sandboxes](https://docs.docker.com/ai/sandboxes/) (`sbx`) run Claude Code in a microVM without access to your host's Docker daemon, SSH keys or home directory. The sandbox image is built from the kit in `.sbx/orangehrm/` and ships PHP 8.5 (the template is Ubuntu 26.04, which has no 8.3; CI's main jobs stay on 8.3), Composer, Node 20 / Yarn 4 and MariaDB, so `make test-php`, `test-js`, `lint` and `fix-*` run natively inside it. `make local-*` uses the sandbox's own Docker Engine. The sandbox is defined in `sbxenv.yaml`; the kit also holds the project network allowlist.
+
+One-time host setup:
+
+```bash
+# macOS (Sonoma 14+, Apple silicon)
+brew trust docker/tap && brew install docker/tap/sbx
+
+# Ubuntu 24.04+ (needs KVM: `lsmod | grep kvm`, user in group kvm)
+sudo usermod -aG kvm $USER        # then log out and in again
+curl -fsSL https://get.docker.com | sudo SBX=1 sh   # Docker Engine + sbx
+
+# both
+sbx login
+sbx policy init balanced          # default-deny network with common dev hosts allowed
+sbx secret set github --command 'gh auth token'   # optional: for git push / gh
+```
+
+Claude authentication (uses your Pro/Max subscription), pick one:
+
+- **`/login` per sandbox:** run `/login` inside Claude on first start. The sbx proxy keeps the real token on the host. The login survives `sbx stop`, but not `make sandbox-rm`.
+- **Setup token for all sandboxes (experimental, untested):** create a long-lived subscription token on the host and store it as a custom sbx secret. The sandbox only sees a placeholder; the proxy swaps in the real token on requests to `api.anthropic.com`.
+
+  ```bash
+  claude setup-token   # on the host, prints the token
+  sbx secret set-custom --host api.anthropic.com --env CLAUDE_CODE_OAUTH_TOKEN --value <token>
+  ```
+
+  `--value` ends up in your shell history; prefer `--command` with a helper outside the repo (e.g. `op read ...` from 1Password). Remove it again with `sbx secret rm` (see `sbx secret --help`).
+
+Check the active login with `/status` inside Claude.
+
+Daily use:
+
+```bash
+make sandbox       # start or attach (Claude starts in this repo)
+make sandbox-rm    # delete the sandbox VM incl. images built inside it
+```
+
+Talking to the sandbox from a normal host terminal (run in the repo root; a stopped sandbox is started automatically):
+
+```bash
+sbx env exec -- claude -p "Run php -v and summarize"   # one-shot prompt, prints the answer and exits
+sbx env exec -- php -v                                 # run any single command inside the sandbox
+sbx exec -it orangehrm bash                            # interactive shell inside the sandbox
+```
+
+`claude -p` needs a login first (run `make sandbox` once and `/login`, or use the setup token). `exec` bypasses the sandbox entrypoint, so MariaDB is only started by `make sandbox`; in a shell, start it with `sudo mysqld_safe --skip-syslog &` before `make test-php`.
+
+The project kit is built with the host's Docker (`docker buildx`), so Docker Desktop / Docker Engine must be running. `make sandbox` creates a dedicated `docker-container` builder `sbx-kits` for it, because the default `docker` driver cannot export the OCI image sbx needs. The first `make sandbox` builds the image (takes a few minutes) and asks you to approve the environment (port 8080, local kit). Inside a new sandbox, run `make deps` once (composer + yarn install). After editing `sbxenv.yaml` or `.sbx/`, recreate the sandbox with `make sandbox-rm && make sandbox`. `make local-up` inside the sandbox is reachable at http://localhost:8080 on the host. Blocked network requests show up in `sbx policy approval ls` / `sbx policy log`.
+
 ### All make targets
 
 Run `make help`.

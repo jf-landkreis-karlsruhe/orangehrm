@@ -89,6 +89,20 @@ Install state lives in `lib/confs/Conf.php` and `lib/confs/cryptokeys/`. The app
 
 `.github/workflows/php_test.yml` (`php_test`, PHPUnit on PHP 7.4–8.5) runs on pull requests and pushes to `main`. The long-running `.github/workflows/scheduled_test.yml` (`db_test` on MariaDB 11.8/12.0) and Cypress run only on pushes to `main`.
 
+## Docker Sandbox (`sbx`)
+
+Claude Code can run in a Docker Sandbox: a microVM built from the workload kit `.sbx/orangehrm/` (Claude Code + PHP 8.5, Composer, Node 20 / Yarn 4, MariaDB, plus a private Docker Engine). The template is Ubuntu 26.04, which has no PHP 8.3; `php8.3` is an alias to 8.5 so `php-cs-fix --php php8.3` works, but CI (8.3) stays authoritative. Host setup is in `README.md`; start with `make sandbox` (`sbx env run`, config in `sbxenv.yaml`).
+
+- The image sets `ORANGEHRM_SANDBOX=1`. The Makefile then runs `test-php`, `test-js`, `lint*` and `fix-*` **natively** (like CI) instead of in `docker/dev`. Inside the sandbox, the "never run php/composer/yarn on the host" rule does not apply; prefer the `make` targets anyway.
+- MariaDB runs on `127.0.0.1:3306` (root/root, the `installer/cli_install_config.yaml` defaults) and is started by the entrypoint `orangehrm-agent`. If it is down: `sudo mysqld_safe --skip-syslog &`.
+- Deps are installed on first use and when a lock file is newer. Run `make deps` once in a fresh sandbox (the shared `vendor/` / `node_modules/` may come from another OS) and after changing `composer.lock` / `yarn.lock`. `make build-dev-images` is not needed for tests/lint.
+- Host and sandbox share `lib/confs/Conf.php`; each test DB setup invalidates the other side's stamp, so switching between them reinstalls the test DB once.
+- `make local-*` uses the sandbox's private Docker Engine. Images survive `sbx stop`, not `make sandbox-rm`.
+- The repo is mounted at the same absolute path as on the host; edits are live in both directions.
+- Network is policy-filtered. The project allowlist lives in `.sbx/orangehrm/orangehrm.yaml` (plus the user's global `sbx policy` preset). If a host is blocked, do not work around it; ask the user to approve it (`sbx policy approval ls`) or to add it to the kit.
+- `sbxenv.yaml` and `.sbx/` define the sandbox and its boundary. Only the user changes them, on the host; changes take effect after `make sandbox-rm && make sandbox`.
+- Claude runs with `--dangerously-skip-permissions` there (sbx default); the VM is the boundary.
+
 ## Upstream skills (`.agents/`)
 
 Upstream ships architecture/convention skills under `.agents/skills/` (catalog: `.agents/skills/README.md`). They are useful references for plugins, REST, entities, migrations etc. This file stays authoritative: where they conflict (dev environment, Docker, CI, test commands), follow the Makefile workflow above, not upstream's `dev-environment` skill or `/onboard`.
