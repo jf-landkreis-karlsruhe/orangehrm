@@ -3,11 +3,13 @@
         local-build local-up local-down local-logs local-reset \
         sandbox sandbox-rm
 
-# Colors
-BLUE := \033[0;34m
-GREEN := \033[0;32m
-YELLOW := \033[1;33m
-NC := \033[0m
+SHELL := /bin/bash
+
+# Colors (real escape characters: bash's echo does not expand \033)
+BLUE := $(shell printf '\033[0;34m')
+GREEN := $(shell printf '\033[0;32m')
+YELLOW := $(shell printf '\033[1;33m')
+NC := $(shell printf '\033[0m')
 
 # Compose stacks
 DEV_COMPOSE   := docker compose -f docker/dev/docker-compose.yml
